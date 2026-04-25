@@ -95,12 +95,13 @@ def main():
     # ---------------------------------------------------------
     config_kwargs = {
         "output_dir": "./incidentmind_trained_model",
-        "learning_rate": 1e-5,
+        "learning_rate": 2e-5,
         "per_device_train_batch_size": 1, 
-        "gradient_accumulation_steps": 4, 
+        "gradient_accumulation_steps": 8, 
         "num_generations": 4,
+        "max_completion_length": 128,
         "logging_steps": 1,
-        "save_steps": 20,
+        "save_steps": 50,
         "max_steps": 100,
         "bf16": True,
         "beta": 0.04,
@@ -130,12 +131,14 @@ def main():
     # ---------------------------------------------------------
     # Trainer Initialization
     # ---------------------------------------------------------
+    # In the latest TRL, max_prompt_length is passed to the Trainer, not Config
     trainer = GRPOTrainer(
         model=args.model_id,
         args=training_args,
         reward_funcs=[compute_incident_rewards],
         train_dataset=dataset,
         processing_class=tokenizer,
+        max_prompt_length=256,
     )
 
     # Execute
