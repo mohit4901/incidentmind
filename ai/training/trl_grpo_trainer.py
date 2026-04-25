@@ -96,18 +96,20 @@ def main():
     config_kwargs = {
         "output_dir": "./incidentmind_trained_model",
         "learning_rate": 1e-5,
-        "per_device_train_batch_size": 2, # Fit on A10G/L4, scale with GPUs
-        "gradient_accumulation_steps": 4, # Effective batch size = 2 * 4 * num_gpus
-        "max_prompt_length": 512,
-        "max_completion_length": 256,
-        "num_generations": 8,            # Samples per prompt
+        "per_device_train_batch_size": 1, 
+        "gradient_accumulation_steps": 4, 
+        "num_generations": 4,
         "logging_steps": 1,
         "save_steps": 20,
-        "max_steps": 100,                # Demo scale, increase for real
-        "bf16": True,                    # Required for modern Ampere+ GPUs
-        "beta": 0.04,                    # KL divergence penalty
+        "max_steps": 100,
+        "bf16": True,
+        "beta": 0.04,
         "temperature": 0.8,
     }
+
+    # Debug: Print available fields if it fails again
+    from dataclasses import fields
+    print(f"Available GRPOConfig fields: {[f.name for f in fields(GRPOConfig)]}")
 
     # Enable vLLM optimizations if requested (Crucial for 7B+ models)
     if args.use_vllm:
@@ -129,9 +131,9 @@ def main():
     # Trainer Initialization
     # ---------------------------------------------------------
     trainer = GRPOTrainer(
-        model=args.model_id,               # Pass string directly, TRL handles loading via HF/Accelerate
+        model=args.model_id,
         args=training_args,
-        reward_funcs=[compute_incident_rewards], # Must be a list or single function
+        reward_funcs=[compute_incident_rewards],
         train_dataset=dataset,
         processing_class=tokenizer,
     )
