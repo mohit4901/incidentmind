@@ -1,0 +1,73 @@
+name: incidentmind-sre-v1
+version: 1.0.0
+description: >
+  RL training environment for LLM agents to resolve production incidents.
+  Agent must diagnose and fix realistic Kubernetes/cloud incidents using
+  logs, metrics, kubectl, and runbooks — under SLA time pressure.
+  
+author: IncidentMind Team
+license: MIT
+hackathon: OpenEnv India 2026
+
+environment:
+  class: IncidentMindEnv
+  module: ai.environment.incident_env
+  
+  episode:
+    max_steps: 50
+    sla_minutes: 30
+    
+  observations:
+    type: dict
+    includes:
+      - alert
+      - logs
+      - available_metrics
+      - pod_status
+      - recent_deploys
+      - action_history
+      - hypothesis_log
+      
+  actions:
+    - query_logs
+    - fetch_metric
+    - run_kubectl
+    - read_runbook
+    - post_hypothesis
+    - execute_fix
+    - check_deploy_diff
+    - query_slack
+    - page_human
+    - mark_resolved
+    
+  reward:
+    dense: true
+    sparse: true
+    range: [-5, 8]
+    rubric: true
+    
+  partial_observability: true
+  stochastic: true
+  
+  incident_classes: 20
+  
+datasets:
+  - name: Google SRE Workbook incident patterns
+    url: https://sre.google/workbook/
+  - name: Public GitHub postmortems
+    url: https://github.com/danluu/post-mortems
+  - name: Prometheus example metrics
+    url: https://prometheus.io/docs/visualization/grafana/
+    
+training:
+  compatible_frameworks:
+    - trl
+    - unsloth
+  recommended_model: Qwen/Qwen2.5-7B-Instruct
+  colab_notebook: notebooks/training_colab.ipynb
+  
+judging:
+  environment_innovation: 40
+  storytelling: 30
+  training_evidence: 20
+  pipeline_quality: 10
