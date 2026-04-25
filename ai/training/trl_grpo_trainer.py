@@ -117,6 +117,9 @@ def main():
     from dataclasses import fields
     print(f"Available GRPOConfig fields: {[f.name for f in fields(GRPOConfig)]}")
 
+    # Disable vLLM for memory stability on 24GB GPUs
+    args.use_vllm = False 
+
     # Enable vLLM optimizations if requested (Crucial for 7B+ models)
     if args.use_vllm:
         config_kwargs["use_vllm"] = True
