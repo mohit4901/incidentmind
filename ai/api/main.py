@@ -52,6 +52,10 @@ class TrainingRequest(BaseModel):
     model_name: str = "Qwen/Qwen2.5-7B-Instruct"
 
 
+@app.get("/")
+def root():
+    return {"status": "ok", "message": "IncidentMind AI Service API is running online on Hugging Face Spaces!"}
+
 @app.get("/health")
 def health():
     return {"status": "ok", "service": "incidentmind-ai"}
