@@ -3,6 +3,7 @@
 # Scalable via DeepSpeed ZeRO-3 & vLLM Generation
 # ======================================================================
 import os
+os.environ["PYTORCH_ALLOC_CONF"] = "expandable_segments:True"
 import argparse
 import re
 import json
@@ -100,9 +101,10 @@ def main():
         "output_dir": "./incidentmind_trained_model",
         "learning_rate": 2e-5,
         "per_device_train_batch_size": 1, 
-        "gradient_accumulation_steps": 8, 
-        "num_generations": 4,
-        "max_completion_length": 128,
+        "gradient_accumulation_steps": 16,  # Accumulate more to compensate smaller group
+        "num_generations": 2,               # Reduced from 4 to save memory
+        "max_completion_length": 64,        # Reduced from 128
+        "gradient_checkpointing": True,     # CRITICAL for memory
         "logging_steps": 1,
         "save_steps": 50,
         "max_steps": 100,
