@@ -70,6 +70,9 @@ def main():
     tokenizer = AutoTokenizer.from_pretrained(args.model_id)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
+    
+    # In latest TRL, prompt truncation is often tied to tokenizer.model_max_length
+    tokenizer.model_max_length = 512
 
     # Synthetic Dataset Bootstrap (In production, replace with real SRE tickets)
     system_prompt = "You are an expert SRE handling a live production incident. Respond with a JSON tool call."
@@ -138,7 +141,6 @@ def main():
         reward_funcs=[compute_incident_rewards],
         train_dataset=dataset,
         processing_class=tokenizer,
-        max_prompt_length=256,
     )
 
     # Execute
