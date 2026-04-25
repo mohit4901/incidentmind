@@ -108,6 +108,8 @@ def main():
         "report_to": "none",
         "gradient_checkpointing": True,
         "learning_rate": 1e-5,
+        "max_steps": 100,
+        "logging_steps": 1,
     }
 
     # Debug: Print available fields if it fails again
