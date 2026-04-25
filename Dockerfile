@@ -18,5 +18,8 @@ RUN pip install -r requirements.txt
 # Copy all project files
 COPY . .
 
-# Set up the command explicitly mapped to accelerate
-CMD ["accelerate", "launch", "ai/training/trl_grpo_trainer.py", "--model_id", "Qwen/Qwen2.5-1.5B-Instruct"]
+# Expose port for Hugging Face Spaces
+EXPOSE 7860
+
+# Run the FastAPI microservice
+CMD ["uvicorn", "ai.api.main:app", "--host", "0.0.0.0", "--port", "7860"]
