@@ -5,6 +5,7 @@ require('dotenv').config();
 
 const app = require('./src/app');
 const { setupAgentStream } = require('./src/socket/agentStream');
+const logger = require('./src/services/logger');
 
 const server = http.createServer(app);
 const io = new Server(server, {
@@ -23,10 +24,10 @@ setupAgentStream(io);
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/incidentmind';
 
 mongoose.connect(MONGODB_URI)
-  .then(() => console.log('[DB] MongoDB connected'))
+  .then(() => logger.db('MongoDB connected successfully'))
   .catch((err) => {
-    console.warn(`[DB] MongoDB connection failed: ${err.message}`);
-    console.warn('[DB] Running without persistence — episodes will not be saved');
+    logger.warn(`MongoDB connection failed: ${err.message}`);
+    logger.warn('Running without persistence — episodes will not be saved');
   });
 
 mongoose.connection.on('error', (err) => {
@@ -36,10 +37,8 @@ mongoose.connection.on('error', (err) => {
 const PORT = process.env.PORT || 3000;
 
 server.listen(PORT, () => {
-  console.log(`\n${'='.repeat(50)}`);
-  console.log(`  IncidentMind Backend`);
-  console.log(`  API:       http://localhost:${PORT}`);
-  console.log(`  WebSocket: ws://localhost:${PORT}`);
-  console.log(`  Python AI: ${process.env.PYTHON_SERVICE_URL || 'http://localhost:8000'}`);
-  console.log(`${'='.repeat(50)}\n`);
+  logger.success(`IncidentMind Backend initialized`);
+  logger.info(`REST API:  http://localhost:${PORT}`);
+  logger.info(`WebSocket: ws://localhost:${PORT}`);
+  logger.info(`AI Bridge: ${process.env.PYTHON_SERVICE_URL || 'http://localhost:8000'}`);
 });

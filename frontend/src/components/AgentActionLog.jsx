@@ -13,6 +13,12 @@ const ACTION_CONFIG = {
   mark_resolved:    { icon: '✅', color: 'text-emerald-300', bg: 'bg-emerald-900/60', border: 'border-emerald-700/30' },
 };
 
+const STATUS_CONFIG = {
+  approved: { label: 'APPROVED', color: 'text-emerald-400', border: 'border-emerald-500/50', bg: 'bg-emerald-500/10' },
+  denied:   { label: 'DENIED',   color: 'text-red-400',     border: 'border-red-500/50',     bg: 'bg-red-500/10' },
+  pending:  { label: 'AWAITING AUTHORIZATION', color: 'text-amber-400', border: 'border-amber-500/50', bg: 'bg-amber-500/10' },
+};
+
 export function AgentActionLog({ steps, isRunning }) {
   const bottomRef = useRef(null);
 
@@ -50,20 +56,24 @@ export function AgentActionLog({ steps, isRunning }) {
           const positive = step.reward > 0;
 
           return (
-            <div key={i} className="flex gap-3 items-start animate-fade-in">
+            <div key={i} className="flex gap-3 items-start animate-fade-in group">
               {/* Step number */}
               <div className="text-[10px] text-gray-600 w-5 pt-2.5 text-right flex-shrink-0 font-mono">
                 {step.step}
               </div>
 
               {/* Action card */}
-              <div className={`flex-1 rounded-lg px-4 py-2.5 border ${cfg.bg} ${cfg.border}`}>
+              <div className={`flex-1 rounded-lg px-4 py-2.5 border transition-all duration-300 ${
+                step.pending_approval ? 'border-amber-500/50 bg-amber-950/20 shadow-[0_0_10px_rgba(245,158,11,0.1)]' : 
+                step.status === 'denied' ? 'border-red-500/50 bg-red-950/20' :
+                cfg.bg + ' ' + cfg.border
+              }`}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 min-w-0">
                     <span className="flex-shrink-0">{cfg.icon}</span>
                     <span className={`font-mono text-xs font-semibold ${cfg.color}`}>{step.action}</span>
                     {step.kwargs && Object.keys(step.kwargs).length > 0 && (
-                      <span className="text-[10px] text-gray-500 truncate">
+                      <span className="text-[10px] text-gray-400 truncate group-hover:text-gray-300">
                         ({Object.entries(step.kwargs).map(([k, v]) => {
                           const val = typeof v === 'string' ? v : JSON.stringify(v);
                           return `${k}=${val.length > 25 ? val.slice(0, 25) + '…' : val}`;
@@ -71,8 +81,20 @@ export function AgentActionLog({ steps, isRunning }) {
                       </span>
                     )}
                   </div>
-                  <div className={`text-xs font-mono font-bold flex-shrink-0 ml-3 ${positive ? 'text-emerald-400' : 'text-red-400'}`}>
-                    {positive ? '+' : ''}{step.reward?.toFixed(2)}
+                  <div className="flex items-center gap-3">
+                    {step.pending_approval && (
+                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded border border-amber-500/50 text-amber-400 bg-amber-950/40 animate-pulse">
+                        PENDING APPROVAL
+                      </span>
+                    )}
+                    {step.status && !step.pending_approval && (
+                      <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${STATUS_CONFIG[step.status].border} ${STATUS_CONFIG[step.status].color} ${STATUS_CONFIG[step.status].bg}`}>
+                        {STATUS_CONFIG[step.status].label}
+                      </span>
+                    )}
+                    <div className={`text-xs font-mono font-bold flex-shrink-0 ${positive ? 'text-emerald-400' : 'text-red-400'}`}>
+                      {positive ? '+' : ''}{step.reward?.toFixed(2)}
+                    </div>
                   </div>
                 </div>
                 <div className="mt-1 flex items-center gap-3 text-[10px] text-gray-600">

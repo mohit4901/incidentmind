@@ -6,7 +6,7 @@ FastAPI microservice — Node.js backend calls this for:
 4. Getting results / reward curves
 """
 
-from fastapi import FastAPI, BackgroundTasks
+from fastapi import FastAPI, BackgroundTasks, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import asyncio
@@ -96,6 +96,96 @@ def run_episode(request: EpisodeRequest):
         "resolved": done and info.get("done_reason") == "resolved",
         "done_reason": info.get("done_reason", "unknown")
     }
+
+@app.websocket("/ws/run-episode")
+async def websocket_run_episode(websocket: WebSocket):
+    await websocket.accept()
+    
+    try:
+        data = await websocket.receive_text()
+        request_data = json.loads(data)
+        incident_class = request_data.get("incident_class", "random")
+        agent_type = request_data.get("agent_type", "trained")
+        max_steps = request_data.get("max_steps", 50)
+        
+        env = IncidentMindEnv()
+        agent = SREAgent(model_type=agent_type)
+        
+        obs = env.reset(forced_class=incident_class)
+        trajectory = []
+        done = False
+        step = 0
+        final_reward = 0.0
+        
+        while not done and step < max_steps:
+            action, kwargs = agent.act(obs)
+            
+            if action == "execute_fix":
+                # Pause and ask for approval
+                step_data = {
+                    "step": step + 1,
+                    "action": action,
+                    "kwargs": kwargs,
+                    "pending_approval": True,
+                    "reward": 0.0,
+                    "cumulative_reward": final_reward
+                }
+                await websocket.send_text(json.dumps({"type": "step", "step": step_data}))
+                
+                decision = await websocket.receive_text()
+                if decision == "denied":
+                    done = True
+                    info = {"done_reason": "Rejected by Human Operator"}
+                    final_reward -= 1.0
+                    denied_step = step_data.copy()
+                    denied_step["reward"] = -1.0
+                    denied_step["cumulative_reward"] = final_reward
+                    denied_step["status"] = "denied"
+                    denied_step.pop("pending_approval")
+                    trajectory.append(denied_step)
+                    await websocket.send_text(json.dumps({"type": "step", "step": denied_step}))
+                    break
+            
+            new_obs, reward, done, info = env.step(action, **kwargs)
+            final_reward += reward
+            
+            step_record = {
+                "step": step + 1,
+                "action": action,
+                "kwargs": kwargs,
+                "reward": reward,
+                "cumulative_reward": final_reward,
+                "observation_summary": {
+                    "time_elapsed": new_obs.get("time_elapsed_minutes", 0),
+                    "action_history_len": len(new_obs.get("action_history", [])),
+                    "hypothesis_count": len(new_obs.get("hypothesis_log", [])),
+                }
+            }
+            if action == "execute_fix":
+                step_record["status"] = "approved"
+                
+            trajectory.append(step_record)
+            
+            # Send step (but if it was pending_approval, this is the update)
+            await websocket.send_text(json.dumps({"type": "step", "step": step_record}))
+            
+            obs = new_obs
+            step += 1
+            
+        await websocket.send_text(json.dumps({
+            "type": "complete",
+            "result": {
+                "trajectory": trajectory,
+                "final_reward": final_reward,
+                "steps_taken": step,
+                "incident_class": env.current_incident_class if hasattr(env, 'current_incident_class') else incident_class,
+                "resolved": done and info.get("done_reason") == "resolved",
+                "done_reason": info.get("done_reason", "unknown")
+            }
+        }))
+    except WebSocketDisconnect:
+        print("WebSocket client disconnected prematurely")
+        pass
 
 
 @app.post("/start-training")

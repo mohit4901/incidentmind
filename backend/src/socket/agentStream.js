@@ -2,55 +2,103 @@
  * Socket.io agent streaming — real-time episode step broadcast.
  */
 
-const pythonBridge = require('../services/pythonBridge');
 const Episode = require('../models/Episode');
+const logger = require('../services/logger');
+const WebSocket = require('ws');
+
+const baseUrl = process.env.PYTHON_SERVICE_URL || 'http://localhost:8000';
+const wsUrl = baseUrl.replace(/^http/, 'ws') + '/ws/run-episode';
 
 function setupAgentStream(io) {
   io.on('connection', (socket) => {
-    console.log(`[Socket] Client connected: ${socket.id}`);
+    logger.socket(socket.id, 'Client connected');
+    let activeWs = null;
 
     socket.on('start-episode', async (data) => {
       const { incidentClass, agentType } = data || {};
-      console.log(`[Socket] Episode requested: class=${incidentClass || 'random'}, agent=${agentType || 'trained'}`);
+      logger.socket(socket.id, `Episode requested: class=${incidentClass || 'random'}, agent=${agentType || 'trained'}`);
 
       try {
-        const result = await pythonBridge.runEpisode({
-          incidentClass: incidentClass || 'random',
-          agentType: agentType || 'trained',
-          maxSteps: 50,
+        if (activeWs) {
+          activeWs.close();
+        }
+
+        activeWs = new WebSocket(wsUrl);
+
+        activeWs.on('open', () => {
+          activeWs.send(JSON.stringify({
+            incident_class: incidentClass || 'random',
+            agent_type: agentType || 'trained',
+            max_steps: 50
+          }));
         });
 
-        const { trajectory } = result;
+        activeWs.on('message', async (dataStr) => {
+          const msg = JSON.parse(dataStr);
+          await sleep(800); // Base streaming delay
 
-        // Stream each step with realistic delay
-        for (let i = 0; i < trajectory.length; i++) {
-          const step = trajectory[i];
-          await sleep(800);
-          socket.emit('agent-step', step);
-        }
+          if (msg.type === 'step') {
+            const step = msg.step;
 
-        // Persist episode to MongoDB
-        try {
-          await Episode.create({
-            incident_class: result.incident_class || 'unknown',
-            agent_type: agentType || 'trained',
-            trajectory: result.trajectory,
-            final_reward: result.final_reward,
-            steps_taken: result.steps_taken,
-            resolved: result.resolved,
-            done_reason: result.done_reason,
-            alert_title: result.incident_class,
-          });
-        } catch (dbErr) {
-          console.warn('[Socket] Failed to persist episode:', dbErr.message);
-        }
+            if (step.pending_approval) {
+              logger.socket(socket.id, 'ACTION SUSPENDED: Awaiting operator approval for execute_fix');
+              socket.emit('agent-step', step);
+              socket.emit('action-approval-required', { tool: step.action, args: step.kwargs });
 
-        socket.emit('episode-complete', {
-          finalReward: result.final_reward,
-          stepsTaken: result.steps_taken,
-          resolved: result.resolved,
-          doneReason: result.done_reason,
-          incidentClass: result.incident_class,
+              const approvalPromise = new Promise((resolve) => {
+                socket.once('action-approved', () => resolve('approved'));
+                socket.once('action-denied', () => resolve('denied'));
+              });
+
+              const decision = await approvalPromise;
+              socket.removeAllListeners('action-approved');
+              socket.removeAllListeners('action-denied');
+
+              if (decision === 'approved') {
+                logger.socket(socket.id, 'Operator APPROVED action.');
+                activeWs.send('approved');
+              } else {
+                logger.socket(socket.id, 'Operator DENIED action.');
+                activeWs.send('denied');
+              }
+            } else {
+              if (step.status === 'approved' || step.status === 'denied') {
+                socket.emit('agent-step-update', { index: step.step - 1, ...step });
+              } else {
+                socket.emit('agent-step', step);
+              }
+            }
+          } else if (msg.type === 'complete') {
+            const res = msg.result;
+            try {
+              await Episode.create({
+                incident_class: res.incident_class || 'unknown',
+                agent_type: agentType || 'trained',
+                trajectory: res.trajectory,
+                final_reward: res.final_reward,
+                steps_taken: res.steps_taken,
+                resolved: res.resolved,
+                done_reason: res.done_reason,
+                alert_title: res.incident_class,
+              });
+            } catch (dbErr) {
+              logger.error(`Failed to persist episode to DB: ${dbErr.message}`);
+            }
+
+            socket.emit('episode-complete', {
+              finalReward: res.final_reward,
+              stepsTaken: res.steps_taken,
+              resolved: res.resolved,
+              doneReason: res.done_reason,
+              incidentClass: res.incident_class,
+            });
+            activeWs.close();
+          }
+        });
+
+        activeWs.on('error', (error) => {
+          console.error('[Socket] WebSocket error:', error.message);
+          socket.emit('error', { message: `AI Service connection failed: ${error.message}` });
         });
 
       } catch (error) {
@@ -64,6 +112,7 @@ function setupAgentStream(io) {
 
     socket.on('disconnect', () => {
       console.log(`[Socket] Client disconnected: ${socket.id}`);
+      if (activeWs) activeWs.close();
     });
   });
 }

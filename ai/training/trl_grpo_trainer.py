@@ -82,7 +82,7 @@ def main():
         "ALERT: P1 - CPU spiked to 100% on pod api-gateway",
         "ALERT: P0 - Ingress rate limits exceeded, dropping 50% of traffic",
         "ALERT: P2 - Memory leak suspected in payment-service",
-    ]
+    ] * 50  # Multiply to ensure enough samples for epoch_iterator with high gradient_accumulation_steps
     
     # Format dataset as Conversational (Required for modern instruction-tuned models)
     formatted_data = {"prompt": []}

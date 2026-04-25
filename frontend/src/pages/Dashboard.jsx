@@ -9,7 +9,7 @@ import { StatusBadge } from '../components/StatusBadge';
 const API_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
 
 export default function Dashboard() {
-  const { connected, agentSteps, isRunning, episodeResult, error, runEpisode, resetEpisode } = useSocket();
+  const { connected, agentSteps, isRunning, episodeResult, error, pendingApproval, runEpisode, resetEpisode, approveAction, denyAction } = useSocket();
   const [agentType, setAgentType] = useState('trained');
   const [incidentClass, setIncidentClass] = useState('random');
   const [trainingStatus, setTrainingStatus] = useState(null);
@@ -130,6 +130,25 @@ export default function Dashboard() {
       {error && (
         <div className="mx-6 mt-3 px-4 py-2.5 bg-red-950/60 border border-red-800/40 rounded-lg text-xs text-red-400 flex items-center gap-2">
           <span>⚠</span> {error}
+        </div>
+      )}
+
+      {/* Human In The Loop Approval Modal/Banner */}
+      {pendingApproval && (
+        <div className="mx-6 mt-3 px-6 py-4 bg-red-950/40 border border-red-500/50 rounded-xl flex items-center justify-between animate-pulse shadow-[0_0_15px_rgba(239,68,68,0.2)]" style={{ animationDuration: '3s' }}>
+          <div className="flex items-center gap-4">
+            <span className="text-3xl inline-block -mt-1 shadow-red-500">🚨</span>
+            <div>
+              <div className="text-red-400 font-bold uppercase tracking-widest text-xs mb-1">Human Operator Authorization Required</div>
+              <div className="text-white text-sm font-mono tracking-tight">
+                Agent requested execution via <span className="text-red-300 font-semibold">{pendingApproval.tool}</span>
+              </div>
+            </div>
+          </div>
+          <div className="flex gap-3">
+             <button onClick={denyAction} className="px-5 py-2.5 border border-red-500 text-red-400 rounded-md hover:bg-red-500/20 transition-all text-xs font-bold uppercase tracking-wider">Deny</button>
+             <button onClick={approveAction} className="px-5 py-2.5 bg-red-600 text-white shadow-[0_0_15px_rgba(239,68,68,0.6)] rounded-md hover:bg-red-500 transition-all text-xs font-bold uppercase tracking-wider">Authorize Fix</button>
+          </div>
         </div>
       )}
 

@@ -10,6 +10,7 @@ export function useSocket() {
   const [isRunning, setIsRunning] = useState(false);
   const [episodeResult, setEpisodeResult] = useState(null);
   const [error, setError] = useState(null);
+  const [pendingApproval, setPendingApproval] = useState(null);
 
   useEffect(() => {
     const socket = io(SOCKET_URL, {
@@ -38,9 +39,25 @@ export function useSocket() {
       setAgentSteps((prev) => [...prev, step]);
     });
 
+    socket.on('agent-step-update', (data) => {
+      setAgentSteps((prev) => {
+        const newSteps = [...prev];
+        if (data.index >= 0 && data.index < newSteps.length) {
+          newSteps[data.index] = data;
+        }
+        return newSteps;
+      });
+      setPendingApproval(null);
+    });
+
+    socket.on('action-approval-required', (data) => {
+      setPendingApproval(data);
+    });
+
     socket.on('episode-complete', (result) => {
       setEpisodeResult(result);
       setIsRunning(false);
+      setPendingApproval(null);
     });
 
     socket.on('error', (err) => {
@@ -67,6 +84,17 @@ export function useSocket() {
     setEpisodeResult(null);
     setError(null);
     setIsRunning(false);
+    setPendingApproval(null);
+  }, []);
+
+  const approveAction = useCallback(() => {
+    if (!socketRef.current) return;
+    socketRef.current.emit('action-approved');
+  }, []);
+
+  const denyAction = useCallback(() => {
+    if (!socketRef.current) return;
+    socketRef.current.emit('action-denied');
   }, []);
 
   return {
@@ -75,7 +103,10 @@ export function useSocket() {
     isRunning,
     episodeResult,
     error,
+    pendingApproval,
     runEpisode,
     resetEpisode,
+    approveAction,
+    denyAction,
   };
 }
