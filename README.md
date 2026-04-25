@@ -1,20 +1,16 @@
 ---
-title: IncidentMind
-emoji: 🔥
-colorFrom: green
-colorTo: purple
-sdk: gradio
-sdk_version: 4.0.0
-app_file: ai/api/gradio_app.py
+title: IncidentMind GRPO Training
+emoji: 🚀
+colorFrom: blue
+colorTo: indigo
+sdk: docker
 pinned: true
 license: mit
 tags:
   - reinforcement-learning
   - openenv
   - sre
-  - incident-response
-  - llm-training
-  - hackathon
+  - trl
 ---
 
 # 🔥 IncidentMind
