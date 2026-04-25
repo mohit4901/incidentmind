@@ -19,4 +19,4 @@ RUN pip install -r requirements.txt
 COPY . .
 
 # Set up the command explicitly mapped to accelerate
-CMD ["accelerate", "launch", "--config_file", "accelerate_configs/deepspeed_zero3.yaml", "ai/training/trl_grpo_trainer.py", "--model_id", "Qwen/Qwen2.5-1.5B-Instruct"]
+CMD ["accelerate", "launch", "ai/training/trl_grpo_trainer.py", "--model_id", "Qwen/Qwen2.5-1.5B-Instruct"]
