@@ -7,9 +7,13 @@ import argparse
 import re
 import json
 import torch
+import sys
 from datasets import Dataset
 from transformers import AutoTokenizer
 from trl import GRPOConfig, GRPOTrainer
+
+# Ensure AI package is discoverable
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from environment.incident_env import IncidentMindEnv
 
 # ---------------------------------------------------------
