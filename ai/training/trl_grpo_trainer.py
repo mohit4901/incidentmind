@@ -97,20 +97,15 @@ def main():
     # ---------------------------------------------------------
     # Strict GRPO Configuration (Matching TRL Docs Parameters)
     # ---------------------------------------------------------
+    # BARE MINIMAL CONFIG FOR STABILITY
     config_kwargs = {
         "output_dir": "./incidentmind_trained_model",
-        "learning_rate": 2e-5,
-        "per_device_train_batch_size": 1, 
-        "gradient_accumulation_steps": 16,  # Accumulate more to compensate smaller group
-        "num_generations": 2,               # Reduced from 4 to save memory
-        "max_completion_length": 64,        # Reduced from 128
-        "gradient_checkpointing": True,     # CRITICAL for memory
-        "logging_steps": 1,
-        "save_steps": 50,
-        "max_steps": 100,
+        "num_generations": 2,
+        "max_completion_length": 64,
+        "per_device_train_batch_size": 1,
+        "gradient_accumulation_steps": 16,
         "bf16": True,
-        "beta": 0.04,
-        "temperature": 0.8,
+        "report_to": "none",
     }
 
     # Debug: Print available fields if it fails again
