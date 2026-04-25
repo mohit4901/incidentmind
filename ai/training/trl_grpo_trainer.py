@@ -106,6 +106,8 @@ def main():
         "gradient_accumulation_steps": 16,
         "bf16": True,
         "report_to": "none",
+        "gradient_checkpointing": True,
+        "learning_rate": 1e-5,
     }
 
     # Debug: Print available fields if it fails again

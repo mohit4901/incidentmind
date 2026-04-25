@@ -4,9 +4,13 @@ deepspeed_config:
   deepspeed_multinode_launcher: standard
   offload_optimizer_device: cpu
   offload_param_device: cpu
-  zero_stage: 2
+  zero_optimization:
+    stage: 3
+    offload_optimizer:
+      device: cpu
+    offload_param:
+      device: cpu
   zero3_init_flag: true
-  zero3_save_16bit_model: true
 distributed_type: DEEPSPEED
 downcast_bf16: 'no'
 machine_rank: 0
