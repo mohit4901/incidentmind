@@ -139,12 +139,22 @@ def main():
     # Trainer Initialization
     # ---------------------------------------------------------
     # In the latest TRL, max_prompt_length is passed to the Trainer, not Config
+    from peft import LoraConfig
+    peft_config = LoraConfig(
+        r=16,
+        lora_alpha=32,
+        lora_dropout=0.05,
+        target_modules=["q_proj", "k_proj", "v_proj", "o_proj", "up_proj", "down_proj", "gate_proj"],
+        task_type="CAUSAL_LM",
+    )
+
     trainer = GRPOTrainer(
         model=args.model_id,
         args=training_args,
         reward_funcs=[compute_incident_rewards],
         train_dataset=dataset,
         processing_class=tokenizer,
+        peft_config=peft_config,
     )
 
     # Execute
