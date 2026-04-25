@@ -8,7 +8,7 @@ RUN ln -s /usr/bin/python3 /usr/bin/python
 WORKDIR /app
 
 # Install pip requirements first
-COPY requirements.txt .
+COPY ai/requirements.txt requirements.txt
 RUN pip install torch transformers>=4.48.0 trl accelerate deepspeed vllm datasets
 RUN pip install -r requirements.txt
 
