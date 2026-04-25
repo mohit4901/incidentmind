@@ -18,8 +18,10 @@ RUN pip install -r requirements.txt
 # Copy all project files
 COPY . .
 
+ENV PYTHONUNBUFFERED=1
+
 # Expose port for Hugging Face Spaces
 EXPOSE 7860
 
-# Run the FastAPI microservice
-CMD ["uvicorn", "ai.api.main:app", "--host", "0.0.0.0", "--port", "7860"]
+# Run the FastAPI microservice using python -m to guarantee module path resolution
+CMD ["python", "-m", "uvicorn", "ai.api.main:app", "--host", "0.0.0.0", "--port", "7860"]
