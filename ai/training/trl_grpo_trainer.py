@@ -61,20 +61,14 @@ def reward_format_json(prompts, completions, **kwargs):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--model_id", type=str, default="Qwen/Qwen2.5-1.5B-Instruct")
-    parser.add_argument("--max_steps", type=int, default=30) # Default to 30 for speed
+    parser.add_argument("--max_steps", type=int, default=10)
     args = parser.parse_args()
 
-    # Device Discovery
-    if torch.cuda.is_available():
-        device = "cuda"
-    elif torch.backends.mps.is_available():
-        device = "mps"
-    else:
-        device = "cpu"
-    
+    device = "mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu"
     print(f"[{datetime.now()}] Compute Engine: {device.upper()}")
 
-    if USE_UNSLOTH:
+    if False:
+        # Check for unsloth
         model, tokenizer = FastLanguageModel.from_pretrained(
             model_name = args.model_id,
             max_seq_length = 512,
@@ -83,37 +77,45 @@ def main():
         )
         model = FastLanguageModel.get_peft_model(model, r = 16, target_modules = ["all-linear"], lora_alpha = 32)
     else:
-        bnb_config = None
-        if device == "cuda":
-            bnb_config = BitsAndBytesConfig(load_in_4bit=True)
-            
+        # Optimized for MPS (LoRA + Gradient Checkpointing)
         model = AutoModelForCausalLM.from_pretrained(
             args.model_id,
-            quantization_config=bnb_config,
-            torch_dtype=torch.float16 if device == "mps" else torch.bfloat16,
-            device_map={"": device} if device != "cpu" else "auto"
+            torch_dtype=torch.float16,
+            device_map={"": device}
         )
+        
+        peft_config = LoraConfig(
+            r=8,
+            lora_alpha=32,
+            target_modules=["q_proj", "v_proj"],
+            lora_dropout=0.05,
+            bias="none",
+            task_type="CAUSAL_LM"
+        )
+        model = get_peft_model(model, peft_config)
+        model.gradient_checkpointing_enable()
+        
         tokenizer = AutoTokenizer.from_pretrained(args.model_id)
         if tokenizer.pad_token is None:
             tokenizer.pad_token = tokenizer.eos_token
 
     env_classes = IncidentMindEnv.INCIDENT_CLASSES
-    formatted_data = {"prompt": []}
-    for cls in env_classes:
-        formatted_data["prompt"].append([
-            {"role": "system", "content": "Respond with JSON tool call."},
-            {"role": "user", "content": f"Incident: {cls}"}
+    dataset_dict = {"prompt": []}
+    for cls in env_classes[:2]: # Only 2 examples for lightning run
+        dataset_dict["prompt"].append([
+            {"role": "system", "content": "SRE Expert. Respond JSON."},
+            {"role": "user", "content": f"Fix incident: {cls}"}
         ])
-    dataset = Dataset.from_dict(formatted_data)
+    dataset = Dataset.from_dict(dataset_dict)
 
     config = GRPOConfig(
         output_dir="./incidentmind_policy",
-        num_generations=2,              # Minimum group for relative reward
-        per_device_train_batch_size=2,  # Must be >= num_generations
-        max_completion_length=48,       # Fast generation
-        learning_rate=1e-5,
+        num_generations=2,
+        per_device_train_batch_size=2,
+        max_completion_length=64, # Increased for real success
+        learning_rate=2e-5,
         logging_steps=1,
-        max_steps=args.max_steps,
+        max_steps=args.max_steps if args.max_steps else 50,
         report_to="none"
     )
 
@@ -121,6 +123,7 @@ def main():
         model=model, args=config,
         reward_funcs=[reward_incident_resolution, reward_format_json],
         train_dataset=dataset, processing_class=tokenizer,
+        callbacks=[SREMetricsCallback()]
     )
 
     print(f"[{datetime.now()}] Starting Neural Evolution...")
