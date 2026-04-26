@@ -54,7 +54,16 @@ class TrainingRequest(BaseModel):
 
 @app.get("/")
 def root():
-    return {"status": "ok", "message": "IncidentMind AI Service API is running online on Hugging Face Spaces!"}
+    return {
+        "status": "active", 
+        "message": "IncidentMind AI Engine Online",
+        "version": "1.1.0 (RL-Enabled)"
+    }
+
+@app.get("/ping")
+def ping():
+    """Keep-alive endpoint for HuggingFace Spaces."""
+    return {"status": "pong", "timestamp": asyncio.get_event_loop().time()}
 
 @app.get("/health")
 def health():

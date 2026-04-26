@@ -56,48 +56,41 @@ class SREAgent:
     
     def act(self, observation: dict) -> tuple[str, dict]:
         """Given observation, return (action_name, kwargs)."""
+        formatted_obs = self._format_observation(observation)
         
         if self.model_type == "untrained":
             return self._random_action(observation)
             
         if self.model_type == "trained":
-            return self._demo_trained_action(observation)
+            # In Hackathon, we use Groq for fast demo, or local PEFT model if available
+            return self._llm_action(formatted_obs)
 
-        return self._random_action(observation) # Fallback
+        return self._random_action(observation)
 
-    def _demo_trained_action(self, obs: dict) -> tuple[str, dict]:
-        """Deterministic high-reward trained baseline for 0ms execution and 100% reliability in Hackathon demo."""
-        step = obs.get("step_count", 0)
-        logs = obs.get("logs", [])
+    def _llm_action(self, formatted_obs: str) -> tuple[str, dict]:
+        """Call LLM with formatted observation and system prompt."""
+        if not self.client:
+            return self._random_action({})
+
+        self.conversation_history.append({"role": "user", "content": formatted_obs})
         
-        # Simple logical progression that looks like an SRE debugging
-        if step == 0:
-            # Step 1: Always check logs first based on available system
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    *self.conversation_history[-5:] # Context window
+                ],
+                temperature=0.1,
+                max_tokens=500,
+                response_format={"type": "json_object"}
+            )
+            content = response.choices[0].message.content
+            self.conversation_history.append({"role": "assistant", "content": content})
+            return self._parse_tool_call(content)
+        except Exception as e:
+            print(f"Agent Inference Error: {e}")
             return "query_logs", {"service": "api-gateway", "filter_text": "error"}
-        elif step == 1:
-            # Step 2: Always fetch metrics
-            metric = obs.get("available_metrics", ["http_requests_total"])[0]
-            return "fetch_metric", {"metric_name": metric, "window": "15m"}
-        elif step == 2:
-            # Step 3: Check pods
-            return "run_kubectl", {"command": "get pods -n production"}
-        elif step == 3:
-            # Step 4: Post hypothesis (high reward)
-            return "post_hypothesis", {
-                "hypothesis": f"Based on log anomalies and metric drifts, the root cause relates to misconfiguration in the cluster affecting production pods.", 
-                "confidence": 0.95
-            }
-        elif step == 4:
-            # Step 5: Execute likely fix
-            return "execute_fix", {"action": "restart_service", "target": "api-gateway"}
-        elif step == 5:
-            # Step 6: Mark resolved (Episode finish!)
-            return "mark_resolved", {
-                "root_cause_analysis": "Traffic dropped due to pod saturation. Identified via logs and metric drifts.",
-                "fix_applied": "Restarted affected instances to clear connection pools and reset state."
-            }
-        
-        return "mark_resolved", {"root_cause_analysis": "Fallback RCA", "fix_applied": "Fallback Fix"}
     
     def _format_observation(self, obs: dict) -> str:
         return f"""

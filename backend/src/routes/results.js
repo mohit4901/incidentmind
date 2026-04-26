@@ -15,6 +15,14 @@ router.get('/', async (req, res) => {
       pyResults = await pythonBridge.getResults();
     } catch (_) {}
 
+    const mongoose = require('mongoose');
+    if (mongoose.connection.readyState !== 1) {
+      return res.json({
+        training: pyResults || null,
+        comparison: { trained: null, untrained: null },
+      });
+    }
+
     // Aggregate from MongoDB as ground truth
     const [trainedAgg, untrainedAgg] = await Promise.all([
       Episode.aggregate([

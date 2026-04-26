@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { EpochProgress } from '../components/EpochProgress';
 import { RewardChart } from '../components/RewardChart';
+import { StatusBadge } from '../components/StatusBadge';
 
 const API_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
 
@@ -47,105 +48,112 @@ export default function Training() {
     }
   };
 
+  const totalRuns = history.length;
+  const totalEpochs = history.reduce((acc, curr) => acc + (curr.total_epochs || 0), 0);
+  const bestFinalAvg = history.length > 0 ? Math.max(...history.map(r => r.final_avg_reward || -9.99)) : 0;
+  const peakImprovement = history.length > 0 ? Math.max(...history.map(r => r.improvement || 0)) : 0;
+
   return (
-    <div className="max-w-[1200px] mx-auto p-8 space-y-8 animate-fade-in">
-      <div className="flex items-end justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Agent Training</h1>
-          <p className="text-gray-400 mt-2">
-            Train the Reinforcement Learning agent via GRPO. 
-            The system saves the best performing weights automatically.
+    <div className="max-w-[1400px] mx-auto animate-fade-in relative z-10 pb-32 font-mono">
+      
+      {/* 1. CYBER-SURGICAL HERO */}
+      <div className="px-8 pt-20 pb-16 grid grid-cols-12 items-center gap-16 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-accent-violet/5 blur-[120px] rounded-full -z-10 animate-pulse" />
+        
+        <div className="col-span-8">
+          <div className="flex items-center gap-3 mb-6">
+             <div className="w-8 h-[1px] bg-accent-violet" />
+             <div className="text-[10px] font-bold tracking-[0.6em] text-accent-violet uppercase">NEURAL_EVOLUTION_PROTOCOL</div>
+          </div>
+          <h1 className="text-6xl font-black tracking-tighter text-text-primary mb-6 leading-[0.9]">
+            Synapse Training<span className="text-accent-violet">_</span>
+          </h1>
+          <p className="text-text-muted text-base max-w-lg leading-relaxed mb-10 opacity-80">
+            Automating diagnostic reasoning via GRPO. 
+            Calibrating decision-weights into the obsidian vault with surgical precision.
           </p>
+          <div className="flex gap-4">
+            <button
+              onClick={() => startTraining(10)}
+              disabled={status?.running}
+              className="px-10 py-4 bg-accent-violet text-[#06060a] text-[11px] font-black tracking-[0.4em] uppercase hover:bg-[#8b5cf6] transition-all disabled:opacity-30 shadow-[0_0_30px_rgba(124,58,237,0.3)]"
+            >
+              Initiate Pulse
+            </button>
+            <button
+              onClick={() => startTraining(50)}
+              disabled={status?.running}
+              className="px-10 py-4 border border-white/10 text-white text-[11px] font-black tracking-[0.4em] uppercase hover:border-white/40 transition-all disabled:opacity-30 bg-white/5"
+            >
+              Sequential Evolution
+            </button>
+          </div>
         </div>
-        <div className="flex gap-3">
-          <button
-            onClick={() => startTraining(10)}
-            disabled={status?.running}
-            className="px-6 py-2.5 bg-gray-800 hover:bg-gray-700 disabled:opacity-50 text-white rounded-lg text-sm font-semibold transition-all border border-gray-700"
-          >
-            Quick Run (10)
-          </button>
-          <button
-            onClick={() => startTraining(50)}
-            disabled={status?.running}
-            className="px-6 py-2.5 bg-violet-700 hover:bg-violet-600 disabled:opacity-50 text-white rounded-lg text-sm font-bold transition-all shadow-lg shadow-violet-900/40 border border-violet-600"
-          >
-            {status?.running ? 'Training Active...' : 'Start Full Training (50)'}
-          </button>
+        
+        <div className="col-span-4 flex justify-center scale-110">
+           <div className="w-56 h-56 rounded-full border border-accent-violet/10 flex items-center justify-center relative">
+              <div className="absolute inset-0 rounded-full border border-accent-violet/20 animate-ping opacity-40" />
+              <div className="absolute inset-4 rounded-full border border-white/5 animate-reverse-spin" />
+              <div className="w-28 h-28 rounded-full bg-gradient-to-br from-accent-violet/20 to-[#06060a] flex flex-col items-center justify-center border border-accent-violet/30">
+                 <div className="text-[9px] text-accent-violet font-bold tracking-widest">SIGNAL</div>
+                 <div className="text-sm font-black text-white">{status?.running ? 'SYNCING' : 'READY'}</div>
+              </div>
+           </div>
         </div>
       </div>
 
-      {status?.running && (
-        <div className="grid grid-cols-2 gap-6">
-          <EpochProgress
-            current={status.current_epoch}
-            total={status.total_epochs}
-            status={status.status}
-            rewardHistory={status.reward_history}
-          />
-          <div className="glass rounded-xl p-5">
-            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-4">Live Reward Curve</h3>
-            <RewardChart data={status.reward_history} height={160} showArea />
+      {/* 2. STAT MONOLITH BANDS */}
+      <div className="px-8 mb-24 grid grid-cols-4 gap-4">
+        {[
+          { label: 'SESSIONS', value: totalRuns, color: 'bg-accent-violet' },
+          { label: 'EVOLUTIONS', value: totalEpochs, color: 'bg-accent-cyan' },
+          { label: 'PEAK_AVG', value: bestFinalAvg > -9 ? bestFinalAvg.toFixed(2) : '0.00', color: 'bg-accent-green' },
+          { label: 'DELTA_MAX', value: (peakImprovement >= 0 ? '+' : '')+peakImprovement.toFixed(2), color: 'bg-accent-violet' }
+        ].map((stat, i) => (
+          <div key={i} className="obsidian-pane p-10 group relative overflow-hidden transition-all hover:bg-white/[0.02]">
+             <div className={`absolute top-0 left-0 w-1 h-full ${stat.color}`} />
+             <div className="text-[10px] tracking-[0.5em] text-text-muted uppercase mb-4 font-bold">{stat.label}</div>
+             <div className="text-4xl font-black tracking-tighter text-text-primary">{stat.value}</div>
           </div>
-        </div>
-      )}
+        ))}
+      </div>
 
-      <div>
-        <h2 className="text-lg font-semibold mb-4">Training History</h2>
-        <div className="bg-[#0f172a] rounded-xl border border-gray-800/50 overflow-hidden">
-          <table className="w-full text-sm text-left">
-            <thead className="bg-[#1e293b]/50 text-gray-400 text-xs uppercase tracking-wider">
-              <tr>
-                <th className="px-6 py-4 font-medium">Date</th>
-                <th className="px-6 py-4 font-medium">Status</th>
-                <th className="px-6 py-4 font-medium">Epochs</th>
-                <th className="px-6 py-4 font-medium">Initial Avg</th>
-                <th className="px-6 py-4 font-medium">Final Avg</th>
-                <th className="px-6 py-4 font-medium text-right">Improvement</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-800/50">
-              {history.map((run) => (
-                <tr key={run._id} className="hover:bg-gray-800/20 transition-colors">
-                  <td className="px-6 py-4 text-gray-300">
-                    {new Date(run.started_at).toLocaleString()}
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                      run.status === 'complete' ? 'bg-emerald-900/40 text-emerald-400' :
-                      run.status === 'error' ? 'bg-red-900/40 text-red-400' :
-                      'bg-amber-900/40 text-amber-400'
-                    }`}>
-                      {run.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 font-mono text-gray-400">
-                    {run.current_epoch} / {run.total_epochs}
-                  </td>
-                  <td className="px-6 py-4 font-mono text-gray-400">
-                    {run.initial_avg_reward?.toFixed(2) || '—'}
-                  </td>
-                  <td className="px-6 py-4 font-mono font-bold text-gray-200">
-                    {run.final_avg_reward?.toFixed(2) || '—'}
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    {run.improvement != null ? (
-                      <span className={`font-mono font-bold ${run.improvement > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                        {run.improvement > 0 ? '+' : ''}{run.improvement.toFixed(2)}
-                      </span>
-                    ) : '—'}
-                  </td>
-                </tr>
-              ))}
-              {history.length === 0 && (
-                <tr>
-                  <td colSpan="6" className="px-6 py-8 text-center text-gray-500">
-                    No training runs found. Click "Start Full Training" to begin.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+      {/* 3. EVOLUTION SEQUENCE */}
+      <div className="px-8 space-y-12">
+        <div className="section-label">System State History</div>
+        <div className="space-y-3">
+          {history.length > 0 ? (
+            history.map((run, idx) => {
+              const improvement = run.improvement || 0;
+              const accentColor = improvement >= 0 ? 'bg-accent-cyan' : 'bg-accent-red';
+              return (
+                <div key={run._id} className="obsidian-pane py-6 px-10 group transition-all border-l-2 border-transparent hover:border-accent-violet hover:bg-white/[0.02] flex items-center justify-between">
+                  <div className="flex items-center gap-10">
+                     <div className={`w-2 h-2 ${accentColor}/40 group-hover:${accentColor} transition-all flex-shrink-0`} />
+                     <div className="w-56 text-xs font-black uppercase tracking-tighter">
+                        {new Date(run.started_at).toLocaleDateString('en-GB')} — {new Date(run.started_at).toLocaleTimeString('en-GB')}
+                     </div>
+                     <div className="w-40 border-l border-white/5 pl-10">
+                        <div className="text-[8px] text-[#4a5068] mb-1 uppercase tracking-[0.2em] font-bold">EPOCHS</div>
+                        <div className="text-xs font-mono font-bold">{run.total_epochs} cycles</div>
+                     </div>
+                     <div className="w-40 border-l border-white/5 pl-10 text-xs font-mono font-black text-white">
+                        {run.final_avg_reward?.toFixed(2) || '0.00'}
+                     </div>
+                  </div>
+                  <div className="flex items-center gap-12">
+                     <div className={`text-sm font-black ${improvement > 0 ? 'text-accent-green' : 'text-accent-red'}`}>
+                        {improvement > 0 ? '+' : ''}{improvement.toFixed(2)}
+                     </div>
+                  </div>
+                </div>
+              );
+            })
+          ) : (
+            <div className="py-24 text-center border border-white/5 bg-white/[0.01]">
+               <div className="text-[10px] text-accent-violet uppercase tracking-[0.6em] font-bold opacity-60">Awaiting_Protocol_Initialization...</div>
+            </div>
+          )}
         </div>
       </div>
     </div>

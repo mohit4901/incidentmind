@@ -4,28 +4,32 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+        sans: ['JetBrains Mono', 'monospace'],
         mono: ['JetBrains Mono', 'Fira Code', 'monospace'],
       },
       colors: {
-        brand: {
-          50: '#ecfdf5',
-          100: '#d1fae5',
-          200: '#a7f3d0',
-          300: '#6ee7b7',
-          400: '#34d399',
-          500: '#10b981',
-          600: '#059669',
-          700: '#047857',
-          800: '#065f46',
-          900: '#064e3b',
-          950: '#022c22',
+        void: '#06060a',
+        obsidian: '#0f0f1a',
+        'obsidian-light': '#13131f',
+        accent: {
+          violet: '#7c3aed',
+          cyan: '#00d4ff',
+          amber: '#ffaa00',
+          green: '#00ff88',
+          red: '#ff3355',
         },
+        text: {
+          primary: '#e8eaf0',
+          secondary: '#8890a8',
+          muted: '#4a5068',
+        }
       },
       animation: {
         'fade-in': 'fadeIn 0.4s ease-out',
         'slide-up': 'slideUp 0.3s ease-out',
         'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+        'ping-ring': 'pingRing 1.5s cubic-bezier(0, 0, 0.2, 1) infinite',
+        'shimmer-fast': 'shimmer 2s linear infinite',
       },
       keyframes: {
         fadeIn: {
@@ -36,7 +40,18 @@ export default {
           '0%': { opacity: '0', transform: 'translateY(16px)' },
           '100%': { opacity: '1', transform: 'translateY(0)' },
         },
+        pingRing: {
+          '0%': { transform: 'scale(1)', opacity: '0.6' },
+          '100%': { transform: 'scale(2.5)', opacity: '0' },
+        },
+        shimmer: {
+          '0%': { backgroundPosition: '0% 50%' },
+          '100%': { backgroundPosition: '-200% 50%' }
+        }
       },
+      backgroundImage: {
+        'shimmer-gradient': 'linear-gradient(90deg, #7c3aed 0%, #00d4ff 50%, #7c3aed 100%)',
+      }
     },
   },
   plugins: [],

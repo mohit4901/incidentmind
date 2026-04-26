@@ -36,50 +36,56 @@ router.get('/status', async (req, res) => {
   try {
     const pyStatus = await pythonBridge.getTrainingStatus();
 
-    // Sync to MongoDB if there's an active run
-    const activeRun = await TrainingRun.findOne({ status: 'running' }).sort({ started_at: -1 });
-    if (activeRun) {
-      activeRun.current_epoch = pyStatus.current_epoch;
-      activeRun.reward_history = pyStatus.reward_history || [];
-      activeRun.logs = pyStatus.latest_logs || [];
+    const mongoose = require('mongoose');
+    if (mongoose.connection.readyState === 1) {
+      // Sync to MongoDB if there's an active run
+      const activeRun = await TrainingRun.findOne({ status: 'running' }).sort({ started_at: -1 });
+      if (activeRun) {
+        activeRun.current_epoch = pyStatus.current_epoch;
+        activeRun.reward_history = pyStatus.reward_history || [];
+        activeRun.logs = pyStatus.latest_logs || [];
 
-      if (pyStatus.status === 'complete') {
-        activeRun.status = 'complete';
-        activeRun.completed_at = new Date();
-        const rewards = activeRun.reward_history;
-        if (rewards.length >= 5) {
-          const early = rewards.slice(0, 5);
-          const late = rewards.slice(-5);
-          activeRun.initial_avg_reward = early.reduce((a, b) => a + b, 0) / early.length;
-          activeRun.final_avg_reward = late.reduce((a, b) => a + b, 0) / late.length;
-          activeRun.improvement = activeRun.final_avg_reward - activeRun.initial_avg_reward;
-          activeRun.best_reward = Math.max(...rewards);
-          activeRun.worst_reward = Math.min(...rewards);
+        if (pyStatus.status === 'complete') {
+          activeRun.status = 'complete';
+          activeRun.completed_at = new Date();
+          const rewards = activeRun.reward_history;
+          if (rewards.length >= 5) {
+            const early = rewards.slice(0, 5);
+            const late = rewards.slice(-5);
+            activeRun.initial_avg_reward = early.reduce((a, b) => a + b, 0) / early.length;
+            activeRun.final_avg_reward = late.reduce((a, b) => a + b, 0) / late.length;
+            activeRun.improvement = activeRun.final_avg_reward - activeRun.initial_avg_reward;
+            activeRun.best_reward = Math.max(...rewards);
+            activeRun.worst_reward = Math.min(...rewards);
+          }
+        } else if (pyStatus.status && pyStatus.status.startsWith('error')) {
+          activeRun.status = 'error';
+          activeRun.error_message = pyStatus.status;
         }
-      } else if (pyStatus.status && pyStatus.status.startsWith('error')) {
-        activeRun.status = 'error';
-        activeRun.error_message = pyStatus.status;
-      }
 
-      await activeRun.save();
+        await activeRun.save();
+      }
     }
 
     res.json(pyStatus);
   } catch (err) {
     // If Python service is down, return last known state from DB
     try {
-      const lastRun = await TrainingRun.findOne().sort({ started_at: -1 });
-      if (lastRun) {
-        return res.json({
-          running: lastRun.status === 'running',
-          current_epoch: lastRun.current_epoch,
-          total_epochs: lastRun.total_epochs,
-          progress_percent: Math.round((lastRun.current_epoch / Math.max(lastRun.total_epochs, 1)) * 100 * 10) / 10,
-          reward_history: lastRun.reward_history,
-          status: lastRun.status,
-          latest_logs: lastRun.logs.slice(-20),
-          source: 'database_fallback',
-        });
+      const mongoose = require('mongoose');
+      if (mongoose.connection.readyState === 1) {
+        const lastRun = await TrainingRun.findOne().sort({ started_at: -1 });
+        if (lastRun) {
+          return res.json({
+            running: lastRun.status === 'running',
+            current_epoch: lastRun.current_epoch,
+            total_epochs: lastRun.total_epochs,
+            progress_percent: Math.round((lastRun.current_epoch / Math.max(lastRun.total_epochs, 1)) * 100 * 10) / 10,
+            reward_history: lastRun.reward_history,
+            status: lastRun.status,
+            latest_logs: lastRun.logs.slice(-20),
+            source: 'database_fallback',
+          });
+        }
       }
     } catch (_) {}
     res.status(500).json({ error: err.message });
@@ -89,6 +95,10 @@ router.get('/status', async (req, res) => {
 // GET /api/training/history — all past training runs
 router.get('/history', async (req, res) => {
   try {
+    const mongoose = require('mongoose');
+    if (mongoose.connection.readyState !== 1) {
+      return res.json([]);
+    }
     const runs = await TrainingRun.find()
       .sort({ started_at: -1 })
       .limit(20)

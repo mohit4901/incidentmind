@@ -1,22 +1,16 @@
 import { useRef, useEffect } from 'react';
 
 const ACTION_CONFIG = {
-  query_logs:       { icon: '🔍', color: 'text-blue-400',    bg: 'bg-blue-950/60',    border: 'border-blue-800/30' },
-  fetch_metric:     { icon: '📊', color: 'text-cyan-400',    bg: 'bg-cyan-950/60',    border: 'border-cyan-800/30' },
-  run_kubectl:      { icon: '⚙️', color: 'text-yellow-400',  bg: 'bg-yellow-950/60',  border: 'border-yellow-800/30' },
-  read_runbook:     { icon: '📖', color: 'text-orange-400',  bg: 'bg-orange-950/60',  border: 'border-orange-800/30' },
-  post_hypothesis:  { icon: '💡', color: 'text-violet-400',  bg: 'bg-violet-950/60',  border: 'border-violet-800/30' },
-  execute_fix:      { icon: '🔧', color: 'text-emerald-400', bg: 'bg-emerald-950/60', border: 'border-emerald-800/30' },
-  check_deploy_diff:{ icon: '🔀', color: 'text-orange-400',  bg: 'bg-orange-950/60',  border: 'border-orange-800/30' },
-  query_slack:      { icon: '💬', color: 'text-pink-400',    bg: 'bg-pink-950/60',    border: 'border-pink-800/30' },
-  page_human:       { icon: '📟', color: 'text-red-400',     bg: 'bg-red-950/60',     border: 'border-red-800/30' },
-  mark_resolved:    { icon: '✅', color: 'text-emerald-300', bg: 'bg-emerald-900/60', border: 'border-emerald-700/30' },
-};
-
-const STATUS_CONFIG = {
-  approved: { label: 'APPROVED', color: 'text-emerald-400', border: 'border-emerald-500/50', bg: 'bg-emerald-500/10' },
-  denied:   { label: 'DENIED',   color: 'text-red-400',     border: 'border-red-500/50',     bg: 'bg-red-500/10' },
-  pending:  { label: 'AWAITING AUTHORIZATION', color: 'text-amber-400', border: 'border-amber-500/50', bg: 'bg-amber-500/10' },
+  query_logs:       { icon: '🔍', color: 'text-accent-cyan',   bg: 'bg-[#002b36]', border: 'border-accent-cyan/20' },
+  fetch_metric:     { icon: '📊', color: 'text-accent-cyan',   bg: 'bg-[#002b36]', border: 'border-accent-cyan/20' },
+  run_kubectl:      { icon: '⚙️', color: 'text-accent-amber',  bg: 'bg-[#3b2a00]', border: 'border-accent-amber/20' },
+  read_runbook:     { icon: '📖', color: 'text-accent-amber',  bg: 'bg-[#3b2a00]', border: 'border-accent-amber/20' },
+  post_hypothesis:  { icon: '💡', color: 'text-accent-violet', bg: 'bg-[#2d0057]', border: 'border-accent-violet/20' },
+  execute_fix:      { icon: '🔧', color: 'text-accent-green',  bg: 'bg-[#003d24]', border: 'border-accent-green/20' },
+  check_deploy_diff:{ icon: '🔀', color: 'text-accent-amber',  bg: 'bg-[#3b2a00]', border: 'border-accent-amber/20' },
+  query_slack:      { icon: '💬', color: 'text-accent-violet', bg: 'bg-[#2d0057]', border: 'border-accent-violet/20' },
+  page_human:       { icon: '📟', color: 'text-accent-red',    bg: 'bg-[#4a001a]', border: 'border-accent-red/20' },
+  mark_resolved:    { icon: '✅', color: 'text-accent-green',  bg: 'bg-[#003d24]', border: 'border-accent-green/30' },
 };
 
 export function AgentActionLog({ steps, isRunning }) {
@@ -26,86 +20,48 @@ export function AgentActionLog({ steps, isRunning }) {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [steps]);
 
-  if (steps.length === 0 && !isRunning) {
-    return (
-      <div className="flex flex-col items-center justify-center h-64 text-gray-600">
-        <div className="text-5xl mb-4">🤖</div>
-        <div className="text-sm font-medium">Agent idle</div>
-        <div className="text-xs mt-1 text-gray-700">Run an episode to watch the agent diagnose an incident</div>
-      </div>
-    );
-  }
-
   return (
-    <div>
-      <div className="flex items-center gap-2 mb-4">
-        <div className="text-xs font-semibold text-gray-500 uppercase tracking-widest">Agent Actions</div>
+    <div className="obsidian-pane p-6 h-full flex flex-col max-h-[600px] border border-white/5 relative overflow-hidden group">
+      <div className="absolute top-0 right-0 p-4 font-black text-[40px] text-white/[0.02] select-none pointer-events-none">LOG_STREAM</div>
+      
+      <div className="flex items-center gap-2 mb-8 relative z-10">
+        <div className="section-label">Neural_Telemetry</div>
         {isRunning && (
           <div className="flex gap-1 ml-2">
-            <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-            <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-            <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+            <span className="w-1.5 h-1.5 bg-accent-cyan animate-ping" />
           </div>
         )}
-        <span className="text-xs text-gray-600 ml-auto">{steps.length} steps</span>
       </div>
 
-      <div className="space-y-2">
-        {steps.map((step, i) => {
-          const cfg = ACTION_CONFIG[step.action] || { icon: '→', color: 'text-gray-400', bg: 'bg-gray-900/50', border: 'border-gray-800/30' };
-          const positive = step.reward > 0;
-
-          return (
-            <div key={i} className="flex gap-3 items-start animate-fade-in group">
-              {/* Step number */}
-              <div className="text-[10px] text-gray-600 w-5 pt-2.5 text-right flex-shrink-0 font-mono">
-                {step.step}
-              </div>
-
-              {/* Action card */}
-              <div className={`flex-1 rounded-lg px-4 py-2.5 border transition-all duration-300 ${
-                step.pending_approval ? 'border-amber-500/50 bg-amber-950/20 shadow-[0_0_10px_rgba(245,158,11,0.1)]' : 
-                step.status === 'denied' ? 'border-red-500/50 bg-red-950/20' :
-                cfg.bg + ' ' + cfg.border
-              }`}>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className="flex-shrink-0">{cfg.icon}</span>
-                    <span className={`font-mono text-xs font-semibold ${cfg.color}`}>{step.action}</span>
-                    {step.kwargs && Object.keys(step.kwargs).length > 0 && (
-                      <span className="text-[10px] text-gray-400 truncate group-hover:text-gray-300">
-                        ({Object.entries(step.kwargs).map(([k, v]) => {
-                          const val = typeof v === 'string' ? v : JSON.stringify(v);
-                          return `${k}=${val.length > 25 ? val.slice(0, 25) + '…' : val}`;
-                        }).join(', ')})
-                      </span>
-                    )}
-                  </div>
+      <div className="space-y-3 overflow-y-auto flex-1 pr-2 relative z-10">
+        {steps.length === 0 && !isRunning ? (
+          <div className="h-48 flex flex-col items-center justify-center text-[10px] text-[#4a5068] uppercase tracking-[0.4em] font-bold opacity-40 italic">
+             Awaiting System Signal...
+          </div>
+        ) : (
+          steps.map((step, i) => {
+            const cfg = ACTION_CONFIG[step.action] || { icon: '→', color: 'text-white', bg: 'bg-white/5', border: 'border-white/10' };
+            const positive = step.reward > 0;
+            return (
+              <div key={i} className={`p-4 border shadow-2xl relative overflow-hidden transition-all ${step.pending_approval ? 'border-accent-amber bg-[#3b2a00]' : cfg.bg + ' ' + cfg.border}`}>
+                <div className="flex items-center justify-between gap-4">
                   <div className="flex items-center gap-3">
-                    {step.pending_approval && (
-                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded border border-amber-500/50 text-amber-400 bg-amber-950/40 animate-pulse">
-                        PENDING APPROVAL
-                      </span>
-                    )}
-                    {step.status && !step.pending_approval && (
-                      <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${STATUS_CONFIG[step.status].border} ${STATUS_CONFIG[step.status].color} ${STATUS_CONFIG[step.status].bg}`}>
-                        {STATUS_CONFIG[step.status].label}
-                      </span>
-                    )}
-                    <div className={`text-xs font-mono font-bold flex-shrink-0 ${positive ? 'text-emerald-400' : 'text-red-400'}`}>
-                      {positive ? '+' : ''}{step.reward?.toFixed(2)}
-                    </div>
+                    <span className="text-sm">{cfg.icon}</span>
+                    <span className={`text-[11px] font-black uppercase tracking-widest ${cfg.color}`}>{step.action}</span>
+                  </div>
+                  <div className={`text-[11px] font-black ${positive ? 'text-accent-green' : 'text-accent-red'}`}>
+                    {positive ? '+' : ''}{step.reward?.toFixed(2)}
                   </div>
                 </div>
-                <div className="mt-1 flex items-center gap-3 text-[10px] text-gray-600">
-                  <span>Σ {step.cumulative_reward?.toFixed(2)}</span>
-                  <span>t={step.observation_summary?.time_elapsed || 0}m</span>
+                <div className="mt-2 pt-2 border-t border-white/5 text-[9px] text-[#4a5068] font-bold uppercase tracking-widest flex justify-between">
+                   <span>Σ {step.cumulative_reward?.toFixed(2)}</span>
+                   <span>t={step.observation_summary?.time_elapsed || 0}m</span>
                 </div>
               </div>
-            </div>
-          );
-        })}
-        <div ref={bottomRef} />
+            );
+          })
+        )}
+        <div ref={bottomRef} className="h-4" />
       </div>
     </div>
   );

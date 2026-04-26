@@ -197,7 +197,7 @@ INCIDENT_TEMPLATES = {
 
     "disk_saturation": {
         "alert": {
-            "title": "P0: Disk full — logging service down, data loss imminent",
+            "title": "P0: Disk full — logging service down",
             "service": "logging-service",
             "severity": "P0",
             "triggered_at": None,
@@ -205,38 +205,63 @@ INCIDENT_TEMPLATES = {
             "source": "Prometheus",
             "runbook_url": "https://runbooks.internal/disk-full"
         },
-        "root_cause": "Log rotation misconfigured after recent log format change — logs growing unbounded, /var/log at 100%",
+        "root_cause": "unbounded logs in /var/log",
         "affected_service": "logging-service",
         "correct_fix": "clear_disk",
-        "available_metrics": [
-            "node_filesystem_avail_bytes", "node_filesystem_size_bytes",
-            "node_disk_io_time_seconds_total", "container_fs_usage_bytes",
-            "log_ingestion_rate_bytes"
-        ],
-        "runbook_sections": [
-            "identify_disk_usage", "emergency_disk_cleanup",
-            "log_rotation_configuration", "archive_old_logs", "increase_disk_capacity"
-        ],
-        "pod_status": {
-            "logging-service-xxx": "CrashLoopBackOff",
-            "elasticsearch-0": "Running (disk warning)",
-            "kibana": "Running"
-        },
-        "recent_deploys": [
-            {"sha": "g2h3i44", "service": "logging-service", "time": "6 hours ago", "author": "deepak.r"}
-        ],
-        "slack_thread": [
-            "deepak.r: updated log format to include full request/response body for debugging",
-            "alerts-bot: [WARNING] /var/log disk usage at 85%",
-            "alerts-bot: [CRITICAL] /var/log disk usage at 100% — writes failing"
-        ],
-        "kubectl_outputs": {
-            "get pods": "logging-service-xxx   0/1   CrashLoopBackOff   7   2h",
-            "logs logging-service": "Error: ENOSPC: no space left on device\nFatal: cannot write log file"
-        },
-        "deploy_diffs": {
-            "g2h3i44": "Changed: logging-service/config/logrotate.conf\n- size 100M\n- rotate 7\n+ # removed size limit for debugging\n+ rotate 0  # keep forever"
-        }
+        "available_metrics": ["node_filesystem_avail_bytes", "container_fs_usage_bytes"],
+        "runbook_sections": ["identify_disk_usage", "emergency_disk_cleanup"],
+        "pod_status": {"logging-service-xxx": "CrashLoopBackOff"},
+        "recent_deploys": [{"sha": "g2h3i44", "service": "logging-service", "time": "6h ago"}],
+        "slack_thread": ["deepak.r: updated log format", "alerts-bot: /var/log 100%"],
+        "kubectl_outputs": {"logs logging-service": "Error: ENOSPC"},
+        "deploy_diffs": {"g2h3i44": "Changed logrotate: rotate 0"}
+    },
+    "dns_misconfiguration": {
+        "alert": {"title": "P1: DNS resolution failing for upstream-api", "service": "payment-service", "severity": "P1"},
+        "root_cause": "Invalid CNAME record in CoreDNS configMap for upstream-api.service.svc.cluster.local",
+        "affected_service": "payment-service", "correct_fix": "update_config",
+        "available_metrics": ["coredns_dns_request_count_total", "coredns_dns_response_rcode_count_total"],
+        "runbook_sections": ["dns_troubleshooting"],
+        "pod_status": {"coredns": "Running", "payment-service": "Running (errors)"},
+        "recent_deploys": [], "slack_thread": ["system: CoreDNS config updated by CI"],
+        "kubectl_outputs": {"logs payment-service": "getaddrinfo ENOTFOUND upstream-api"},
+        "deploy_diffs": {}
+    },
+    "cpu_spike_cascade": {
+        "alert": {"title": "P0: Massive CPU spike in checkout-service", "service": "checkout-service", "severity": "P0"},
+        "root_cause": "Inefficient regex causing ReDoS",
+        "affected_service": "checkout-service", "correct_fix": "rollback_deploy",
+        "available_metrics": ["container_cpu_usage_seconds_total"],
+        "runbook_sections": ["cpu_profiling"],
+        "pod_status": {"checkout-service": "Running (Throttled)"},
+        "recent_deploys": [{"sha": "cpu9922", "service": "checkout-service", "time": "10m ago"}],
+        "slack_thread": ["alerts: checkout p99 latency 15s"],
+        "kubectl_outputs": {"describe pod": "CPU limit reached"},
+        "deploy_diffs": {"cpu9922": "+ const regex = /^(a+)+$/;"}
+    },
+    "ingress_misconfiguration": {
+        "alert": {"title": "P0: Ingress 502 Errors — API Unreachable", "service": "ingress-nginx", "severity": "P0"},
+        "root_cause": "Wrong service port in Ingress path configuration after service refactor",
+        "affected_service": "ingress-nginx", "correct_fix": "update_config",
+        "available_metrics": ["nginx_ingress_controller_requests"],
+        "runbook_sections": ["check_ingress_config"],
+        "pod_status": {"ingress-nginx-controller": "Running"},
+        "recent_deploys": [{"sha": "ing77", "service": "infrastructure", "time": "5m ago"}],
+        "slack_thread": ["alerts: 502 errors spiking"],
+        "kubectl_outputs": {"get ingress": "path: /api -> service: api-gateway:80 (targetPort should be 8080)"},
+        "deploy_diffs": {"ing77": "- port: 8080\n+ port: 80"}
+    },
+    "rate_limit_misconfiguration": {
+        "alert": {"title": "P2: 429 Errors for legitimate traffic", "service": "api-gateway", "severity": "P2"},
+        "root_cause": "Internal service IP range accidentally included in global rate limit broad bucket",
+        "affected_service": "api-gateway", "correct_fix": "update_rate_limit",
+        "available_metrics": ["http_requests_total"],
+        "runbook_sections": ["check_rate_limits"],
+        "pod_status": {"api-gateway": "Running"},
+        "recent_deploys": [{"sha": "rl55", "service": "api-gateway", "time": "1h ago"}],
+        "slack_thread": ["frontend: users getting 429s"],
+        "kubectl_outputs": {"logs api-gateway": "RateLimit exceeded for IP 10.0.1.45"},
+        "deploy_diffs": {"rl55": "Modified rate-limit config: default bucket reduced to 10req/sec"}
     }
 }
 

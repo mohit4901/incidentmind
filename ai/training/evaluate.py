@@ -1,98 +1,79 @@
 """
-Evaluation script — runs N episodes and reports aggregate metrics.
-Used to compute before/after comparison numbers for the README.
+IncidentMind Evaluation Script.
+Compares Untrained (Random) vs Trained (LLM/RL) models across 10 episodes.
 """
-
 import os
 import sys
-import json
-import argparse
+import pandas as pd
 from datetime import datetime
 
+# Ensure imports work
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 from environment.incident_env import IncidentMindEnv
 from agent.sre_agent import SREAgent
 
-
-def evaluate(agent_type: str = "trained", num_episodes: int = 20):
+def run_eval(model_type="untrained", num_episodes=5):
     env = IncidentMindEnv()
-    agent = SREAgent(model_type=agent_type)
-
-    results = {
-        "agent_type": agent_type,
-        "episodes": num_episodes,
-        "rewards": [],
-        "steps": [],
-        "resolved_count": 0,
-        "sla_met_count": 0,
-        "wrong_fix_count": 0,
-    }
-
-    print(f"\n{'='*50}")
-    print(f"  Evaluating {agent_type} agent — {num_episodes} episodes")
-    print(f"{'='*50}\n")
-
-    for ep in range(num_episodes):
+    agent = SREAgent(model_type=model_type)
+    
+    results = []
+    
+    print(f"\n--- Evaluating {model_type.upper()} Model ({num_episodes} episodes) ---")
+    
+    for i in range(num_episodes):
         obs = env.reset()
         done = False
-        episode_reward = 0.0
+        total_reward = 0
         steps = 0
         agent.reset()
-
-        while not done and steps < 50:
+        
+        while not done and steps < 30:
             action, kwargs = agent.act(obs)
             obs, reward, done, info = env.step(action, **kwargs)
-            episode_reward += reward
+            total_reward += reward
             steps += 1
-
+            
         done_reason = info.get("done_reason", "max_steps")
-        resolved = done_reason == "resolved"
-
-        results["rewards"].append(round(episode_reward, 3))
-        results["steps"].append(steps)
-        if resolved:
-            results["resolved_count"] += 1
-        if obs.get("time_elapsed_minutes", 999) <= 30:
-            results["sla_met_count"] += 1
-
-        icon = "✅" if resolved else "❌"
-        print(f"  Ep {ep+1:3d} | {icon} {done_reason:20s} | reward={episode_reward:+.3f} | steps={steps}")
-
-    # Summary
-    avg_reward = sum(results["rewards"]) / len(results["rewards"])
-    avg_steps = sum(results["steps"]) / len(results["steps"])
-    resolution_rate = results["resolved_count"] / num_episodes * 100
-    sla_rate = results["sla_met_count"] / num_episodes * 100
-
-    print(f"\n{'='*50}")
-    print(f"  Results: {agent_type} agent")
-    print(f"  Avg Reward:       {avg_reward:+.3f}")
-    print(f"  Avg Steps:        {avg_steps:.1f}")
-    print(f"  Resolution Rate:  {resolution_rate:.0f}%")
-    print(f"  SLA Compliance:   {sla_rate:.0f}%")
-    print(f"{'='*50}\n")
-
-    # Save
-    output_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "outputs", "episodes")
-    os.makedirs(output_dir, exist_ok=True)
-    with open(os.path.join(output_dir, f"eval_{agent_type}.json"), "w") as f:
-        json.dump({
-            **results,
-            "avg_reward": avg_reward,
-            "avg_steps": avg_steps,
-            "resolution_rate": resolution_rate,
-            "sla_compliance": sla_rate,
-            "timestamp": datetime.utcnow().isoformat()
-        }, f, indent=2)
-
+        resolved = (done_reason == "resolved")
+        
+        results.append({
+            "episode": i + 1,
+            "reward": total_reward,
+            "steps": steps,
+            "resolved": resolved,
+            "reason": done_reason
+        })
+        print(f"Episode {i+1}: {'✅' if resolved else '❌'} | Reward: {total_reward:+.2f} | Steps: {steps}")
+        
     return results
 
+def main():
+    untrained_results = run_eval("untrained", 5)
+    trained_results = run_eval("trained", 5)
+    
+    u_df = pd.DataFrame(untrained_results)
+    t_df = pd.DataFrame(trained_results)
+    
+    print(f"\n{'='*40}")
+    print(f"       INCIDENTMIND EVALUATION")
+    print(f"{'='*40}")
+    print(f"METRIC            UNTRAINED    TRAINED")
+    print(f"----------------------------------------")
+    print(f"Avg Reward        {u_df['reward'].mean():+9.2f}    {t_df['reward'].mean():+9.2f}")
+    print(f"Resolution Rate   {u_df['resolved'].mean()*100:8.1f}%    {t_df['resolved'].mean()*100:8.1f}%")
+    print(f"Avg Steps         {u_df['steps'].mean():9.1f}    {t_df['steps'].mean():9.1f}")
+    print(f"{'='*40}")
+    
+    # Save comparison to markdown for judges
+    with open("eval_results.md", "w") as f:
+        f.write("# IncidentMind Evaluation Results\n\n")
+        f.write("| Metric | Untrained (Baseline) | Trained (RL-SRE) | Improvement |\n")
+        f.write("|---|---|---|---|\n")
+        imp_reward = t_df['reward'].mean() - u_df['reward'].mean()
+        imp_res = (t_df['resolved'].mean() - u_df['resolved'].mean()) * 100
+        f.write(f"| Avg Reward | {u_df['reward'].mean():.2f} | {t_df['reward'].mean():.2f} | **{imp_reward:+.2f}** |\n")
+        f.write(f"| Res. Rate | {u_df['resolved'].mean()*100:.1f}% | {t_df['resolved'].mean()*100:.1f}% | **{imp_res:+.1f}%** |\n")
+        f.write(f"| Avg Steps | {u_df['steps'].mean():.1f} | {t_df['steps'].mean():.1f} | **{u_df['steps'].mean()-t_df['steps'].mean():.1f} fewer** |\n")
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--agent", type=str, default="trained", choices=["trained", "untrained"])
-    parser.add_argument("--episodes", type=int, default=20)
-    args = parser.parse_args()
-
-    evaluate(agent_type=args.agent, num_episodes=args.episodes)
+    main()
