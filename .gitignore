@@ -58,3 +58,6 @@ incidentmind_policy/
 /results/
 /ai/training/results/
 *.png
+
+# Weights
+incidentmind_final/
