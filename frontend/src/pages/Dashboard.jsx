@@ -6,7 +6,14 @@ import { RewardChart } from '../components/RewardChart';
 import { EpochProgress } from '../components/EpochProgress';
 import { StatusBadge } from '../components/StatusBadge';
 
-const API_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
+const getBaseURL = () => {
+  if (import.meta.env.VITE_BACKEND_URL) return import.meta.env.VITE_BACKEND_URL;
+  if (window.location.hostname.endsWith('.hf.space')) return window.location.origin;
+  return 'http://localhost:3000';
+};
+
+const API_URL = getBaseURL();
+const WS_URL = API_URL.replace(/^http/, 'ws');
 
 export default function Dashboard() {
   const { connected, agentSteps, isRunning, episodeResult, error, pendingApproval, runEpisode, resetEpisode, approveAction, denyAction } = useSocket();

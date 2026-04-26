@@ -178,30 +178,29 @@ class RewardEngine:
         rca_score = min(2.0, rca_matches * 0.4)
         total_reward += rca_score
         
-        # 2. Fix correctness
+        # 2. Fix correctness (Major weight)
         if correct_fix_applied:
-            total_reward += 1.5
+            total_reward += 3.0 # Increased from 1.5
         else:
-            total_reward -= 0.5
+            total_reward -= 1.0
         
-        # 3. Time efficiency
-        if time_elapsed <= sla_minutes * 0.5:
-            total_reward += 1.0  # Resolved in first half of SLA
+        # 3. Efficiency Multiplier (Top 5 Winning Logic)
+        # We reward "Surgical Precision" — few steps, early resolution.
+        if correct_fix_applied:
+            efficiency_bonus = max(0, 2.0 * (1.0 - (step_count / 50.0)))
+            total_reward += efficiency_bonus
+        
+        # 4. SLA Bonus
+        if time_elapsed <= sla_minutes * 0.3:
+            total_reward += 1.5 # Fast resolution
         elif time_elapsed <= sla_minutes:
-            total_reward += 0.5  # Resolved within SLA
-        else:
-            total_reward -= 0.5  # SLA breached
-        
-        # 4. Tool efficiency
-        if step_count <= 15:
-            total_reward += 0.5  # Very efficient
-        elif step_count <= 25:
-            total_reward += 0.25
-        elif step_count > 40:
-            total_reward -= 0.25  # Too many steps
-        
-        # 5. Hypothesis quality — did agent hypothesise before fixing?
-        if hypothesis_log:
             total_reward += 0.5
+        else:
+            total_reward -= 1.0
+            
+        # 5. Anti-Spam Penalty
+        # If agent took >10 steps for a 5-step problem, penalise the "noise"
+        if step_count > 20:
+            total_reward -= (step_count - 20) * 0.05
         
         return round(total_reward, 2)

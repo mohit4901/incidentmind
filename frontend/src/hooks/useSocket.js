@@ -1,7 +1,12 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { io } from 'socket.io-client';
 
-const SOCKET_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
+const getSocketURL = () => {
+  if (import.meta.env.VITE_BACKEND_URL) return import.meta.env.VITE_BACKEND_URL;
+  if (window.location.hostname.endsWith('.hf.space')) return window.location.origin;
+  return 'http://localhost:3000';
+};
+const SOCKET_URL = getSocketURL();
 
 export function useSocket() {
   const socketRef = useRef(null);
