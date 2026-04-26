@@ -278,24 +278,27 @@ class RewardEngine:
     def calculate_academic_metrics(self, history: list) -> dict:
         """
         Technical AI View (Precision/F1)
+        Standard Metric Equations:
+        Precision = TP / (TP + FP)
+        Recall = TP / (TP + FN)
         """
         if not history:
-            return {"surgical_precision": 0, "diagnostic_recall": 0, "f1_score": 0, "overall_accuracy": 0}
+            return {"precision": 0.0, "f1_score": 0.0, "accuracy": 0.0}
             
-        true_positives = sum(1 for e in history if e.get('resolved') and e.get('correct_fix'))
-        false_positives = sum(1 for e in history if not e.get('resolved') and e.get('fix_attempts', 0) > 0)
-        false_negatives = sum(1 for e in history if not e.get('resolved') and e.get('fix_attempts', 0) == 0)
+        tp = sum(1 for e in history if e.get('resolved') and e.get('correct_fix'))
+        fp = sum(1 for e in history if not e.get('resolved') and e.get('fix_attempts', 0) > 0)
+        fn = sum(1 for e in history if not e.get('resolved') and e.get('fix_attempts', 0) == 0)
         
-        precision = true_positives / (true_positives + false_positives) if (true_positives + false_positives) > 0 else 0
-        recall = true_positives / (true_positives + false_negatives) if (true_positives + false_negatives) > 0 else 0
-        f1 = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0
+        precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
+        recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
         accuracy = sum(1 for e in history if e.get('resolved')) / len(history)
         
+        f1 = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0.0
+        
         return {
-            "surgical_precision": round(precision * 100, 1),
-            "diagnostic_recall": round(recall * 100, 1),
+            "precision": round(precision, 2),
             "f1_score": round(f1, 2),
-            "overall_accuracy": round(accuracy * 100, 1)
+            "accuracy": round(accuracy, 2)
         }
 
     def score_resolution(self, rca_text, fix_description, true_root_cause, true_fix,

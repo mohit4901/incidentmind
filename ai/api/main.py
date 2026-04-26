@@ -52,13 +52,71 @@ class TrainingRequest(BaseModel):
     model_name: str = "Qwen/Qwen2.5-7B-Instruct"
 
 
-@app.get("/")
+from fastapi.responses import HTMLResponse
+
+@app.get("/", response_class=HTMLResponse)
 def root():
-    return {
-        "status": "active", 
-        "message": "IncidentMind AI Engine Online",
-        "version": "1.1.0 (RL-Enabled)"
-    }
+    return """
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>IncidentMind | Autonomous SRE Research</title>
+        <style>
+            @import url('https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@300;400;600&display=swap');
+            body { background-color: #fcfcfc; color: #111; font-family: 'Crimson Pro', serif; line-height: 1.7; max-width: 750px; margin: 0 auto; padding: 80px 25px; letter-spacing: -0.01em; }
+            .header { border-bottom: 1px solid #ddd; margin-bottom: 50px; padding-bottom: 20px; }
+            h1 { font-weight: 400; font-size: 2.6rem; margin: 0; color: #000; letter-spacing: -0.03em; }
+            .subtitle { font-style: italic; color: #555; font-size: 1.1rem; }
+            .abstract { font-size: 1.25rem; font-weight: 300; color: #333; margin-bottom: 40px; border-left: 3px solid #000; padding-left: 25px; }
+            .section-title { text-transform: uppercase; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.15em; color: #888; margin-top: 45px; margin-bottom: 15px; }
+            p { margin-bottom: 25px; text-align: justify; }
+            .status-tag { display: inline-block; background-color: #000; color: #fff; padding: 4px 10px; font-size: 0.75rem; font-family: 'Courier New', Courier, monospace; border-radius: 1px; margin-right: 10px; }
+            .footer { margin-top: 80px; font-size: 0.85rem; color: #888; border-top: 1px solid #ddd; padding-top: 20px; }
+            a { color: #000; text-decoration: underline; text-underline-offset: 4px; }
+            .nav { margin-bottom: 30px; font-size: 0.85rem; font-weight: 600; color: #999; }
+        </style>
+    </head>
+    <body>
+        <div class="nav">RESEARCH_PAPER // OPENENV_HACKATHON // INCIDENTMIND</div>
+        <div class="header">
+            <h1>IncidentMind</h1>
+            <div class="subtitle">Autonomous Site Reliability Engineering through Group Relative Policy Optimization</div>
+        </div>
+        
+        <div class="abstract">
+            IncidentMind is an advanced reinforcement learning framework designed to foster the evolution of large language models into expert-level site reliability engineers. By integrating high-fidelity infrastructure telemetry with sparse and dense reward functions, we enable agents to resolve complex systems failures with scientific precision.
+        </div>
+
+        <div class="section-title">Engine State</div>
+        <div style="margin-top: 15px;">
+            <span class="status-tag">CORE_ACTIVE</span>
+            <span class="status-tag">RL_POLICY: GRPO-ENABLED</span>
+            <span class="status-tag">BUILD: 1.1.0</span>
+        </div>
+
+        <div class="section-title">Methodology</div>
+        <p>
+            Unlike traditional rule-based diagnostic systems, IncidentMind relies on dynamic policy evolution. Our environment simulates twenty distinct incident archetypes—ranging from resource saturation cascade to complex network partitions—requiring the agent to synthesize observations from logs, metrics, and pod status in real-time. This methodology significantly reduces hallucinations by grounding every diagnostic hypothesis in quantitative telemetry.
+        </p>
+
+        <div class="section-title">Evaluation Metrics</div>
+        <p>
+            The framework employs a multidimensional scoring system. Agents are evaluated not only on resolution speed but on the technical rigor of their diagnostics (Precision, Recall, F1) and their overall seniority alignment. This ensures that the evolved policy reflects the behavioral patterns of a senior system architect rather than a heuristic agent.
+        </p>
+
+        <div class="section-title">Resources</div>
+        <p>
+            Interact with the system through the <a href="https://cottoncloud-incidentmind-grpo-training.hf.space">Main Neural Dashboard</a>. For technical integration details, refer to the <a href="/docs">API Schema</a>.
+        </p>
+
+        <div class="footer">
+            Copyright &copy; 2026 The IncidentMind Project. Distributed under the OpenEnv Standard. No unauthorized reproduction of neural weights.
+        </div>
+    </body>
+    </html>
+    """
 
 @app.get("/ping")
 def ping():
