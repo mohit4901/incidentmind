@@ -1,14 +1,6 @@
----
-title: IncidentMind
-emoji: 🛰️
-colorFrom: blue
-colorTo: gray
-sdk: docker
-app_port: 7860
-pinned: true
----
 
-# 🛰️ IncidentMind: Neural Evolution of Autonomous SREs
+
+#  IncidentMind: Neural Evolution of Autonomous SREs
 ### A Technical Whitepaper on Root-Cause Forensics via Group Relative Policy Optimization (GRPO)
 
 > **Abstract:** IncidentMind introduces a novel reinforcement learning framework for Site Reliability Engineering (SRE). By leveraging GRPO to ground Large Language Models in high-fidelity infrastructure telemetry, we eliminate diagnostic hallucinations and achieve surgical precision in automated service recovery.
@@ -46,7 +38,7 @@ graph TD
 
 ---
 
-## 🔬 2. The Neural Incident Zoo
+##  2. The Neural Incident Zoo
 Our agent is trained to handle complex, non-linear failure modes. Unlike simple rule-based systems, IncidentMind identifies **hidden correlations**.
 
 | Incident Archetype | Diagnostic Pattern | Required Agent Action |
@@ -58,7 +50,7 @@ Our agent is trained to handle complex, non-linear failure modes. Unlike simple 
 
 ---
 
-## 🧮 3. Reward Mathematics: Grounding via Multi-Objective Rubrics
+##  3. Reward Mathematics: Grounding via Multi-Objective Rubrics
 The policy $ \pi_{\theta} $ is optimized using a weighted reward function $ R_{total} $:
 
 $$ R_{total} = \omega_{forensic} R_f + \omega_{rigor} R_r + \omega_{goal} R_g - \omega_{penalty} P $$
@@ -71,10 +63,10 @@ Where:
 
 ---
 
-## 📈 4. Experimental Results: Phase 1 Evidence
+##  4. Experimental Results: Phase 1 Evidence
 Following a 15-step local evolution run on **Apple Silicon MPS**, we observed a significant separation between the trained policy and the baseline.
 
-### 🧪 Performance Scorecard
+###  Performance Scorecard
 | Metric | Baseline | **IncidentMind (v1.1)** | Impact |
 | :--- | :--- | :--- | :--- |
 | **Mean Precision** | 0.05 | **0.60** | **12x Accuracy** |
@@ -82,13 +74,13 @@ Following a 15-step local evolution run on **Apple Silicon MPS**, we observed a 
 | **Resolution Rate** | 10% | **85%** | **8.5x Uptime** |
 | **MTTR Reduction** | N/A | **-42%** | **Faster Recovery** |
 
-### 🖼️ Diagnostic Convergence Chart
+###  Diagnostic Convergence Chart
 ![Phase1_Comparison_Curve](https://huggingface.co/spaces/CottonCloud/incidentmind-grpo-training/resolve/main/results/Phase1_Comparison_Curve.png)
 *Figure 1: Mean collective reward across 60 rollouts. The blue curve (IncidentMind) demonstrates rapid stabilization of diagnostic logic compared to the random baseline (red).*
 
 ---
 
-## 🛠️ 5. Implementation Stack
+##  5. Implementation Stack
 - **Framework**: TRL + PEFT + Transformers
 - **Algorithm**: **GRPO** (Group Relative Policy Optimization)
 - **Engine**: Qwen-2.5-1.5B (Expert Grounding) / Llama-3.3-70B (Duel State)
@@ -97,7 +89,7 @@ Following a 15-step local evolution run on **Apple Silicon MPS**, we observed a 
 
 ---
 
-## 🛰️ 6. Navigation & Links
+## 6. Navigation & Links
 - **GitHub Repository**: [mohit4901/incidentmind](https://github.com/mohit4901/incidentmind)
 - **Interactive Space**: [HF Dashboard](https://huggingface.co/spaces/CottonCloud/incidentmind-grpo-training)
 - **Training Evidence**: [Google Colab Notebook](https://colab.research.google.com/drive/1PRfYsZYByzECGxi4186NMp57BRZbVPag?usp=sharing)
