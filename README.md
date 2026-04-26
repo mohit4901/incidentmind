@@ -1,3 +1,13 @@
+---
+title: IncidentMind
+emoji: 🛰️
+colorFrom: blue
+colorTo: gray
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
 # IncidentMind: Neural Evolution for Autonomous Infrastructure Reliability
 
 IncidentMind is an advanced reinforcement learning platform dedicated to the professional evolution of large language models within the domain of Site Reliability Engineering (SRE). By synthesizing high-fidelity telemetry patterns with a multi-objective reward rubric, IncidentMind enables agents to surpass traditional heuristic methods and achieve grounded, verifiable diagnostic mastery.
@@ -50,8 +60,9 @@ We provide verifiable evidence of policy evolution through quantitative metrics 
 - **Mean Reward per Episode**: +4.2 (Evolved) vs -0.8 (Baseline)
 
 ### Training Artifacts
-- **Reward Curve**: [ai/training/results/Latest_Reward_Curve.png](file:///ai/training/results/Latest_Reward_Curve.png)
-- **Training Script (Colab Ready)**: [trl_grpo_trainer.py](file:///ai/training/trl_grpo_trainer.py)
+- **Policy Evolution Curve**: ![Reward_Convergence](https://raw.githubusercontent.com/mohit4901/incidentmind/main/ai/training/results/Reward_Convergence.png)
+- **Neural Stability Plot**: ![Policy_Stability](https://raw.githubusercontent.com/mohit4901/incidentmind/main/ai/training/results/Policy_Stability_Loss.png)
+- **Training Script (Colab Ready)**: [trl_grpo_trainer.py](https://github.com/mohit4901/incidentmind/blob/main/ai/training/trl_grpo_trainer.py)
 
 ---
 
