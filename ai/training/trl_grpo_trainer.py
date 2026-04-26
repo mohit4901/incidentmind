@@ -9,11 +9,14 @@ import matplotlib.pyplot as plt
 import threading
 import time
 from datetime import datetime
-from datasets import Dataset
-from transformers import AutoTokenizer
-from trl import GRPOConfig, GRPOTrainer
-from unsloth import FastLanguageModel, PatchGRPO
-PatchGRPO() # Meta-level optimization for GRPO
+try:
+    from unsloth import FastLanguageModel, PatchGRPO
+    USE_UNSLOTH = True
+    PatchGRPO() 
+except ImportError:
+    USE_UNSLOTH = False
+    from peft import LoraConfig
+    from transformers import BitsAndBytesConfig, AutoModelForCausalLM
 
 # Ensure AI package is discoverable
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -71,23 +74,48 @@ def main():
     parser.add_argument("--max_steps", type=int, default=100)
     args = parser.parse_args()
 
-    # UNSLOTH PEFT Loading (2x Faster, 40% less VRAM)
-    model, tokenizer = FastLanguageModel.from_pretrained(
-        model_name = args.model_id,
-        max_seq_length = 512,
-        load_in_4bit = True,
-        fast_inference = True,
-    )
+    if USE_UNSLOTH:
+        # UNSLOTH PEFT Loading (2x Faster, 40% less VRAM)
+        model, tokenizer = FastLanguageModel.from_pretrained(
+            model_name = args.model_id,
+            max_seq_length = 512,
+            load_in_4bit = True,
+            fast_inference = True,
+        )
+        model = FastLanguageModel.get_peft_model(
+            model,
+            r = 16,
+            target_modules = ["q_proj", "k_proj", "v_proj", "o_proj",
+                             "gate_proj", "up_proj", "down_proj",],
+            lora_alpha = 32, lora_dropout = 0, bias = "none",
+            use_gradient_checkpointing = "unsloth",
+            random_state = 3407,
+        )
+    else:
+        # Standard LoRA Fallback
+        bnb_config = BitsAndBytesConfig(
+            load_in_4bit=True,
+            bnb_4bit_compute_dtype=torch.bfloat16,
+            bnb_4bit_quant_type="nf4",
+            bnb_4bit_use_double_quant=True,
+        )
+        model = AutoModelForCausalLM.from_pretrained(
+            args.model_id,
+            quantization_config=bnb_config,
+            torch_dtype=torch.bfloat16,
+            device_map="auto"
+        )
+        
+        from transformers import AutoTokenizer
+        tokenizer = AutoTokenizer.from_pretrained(args.model_id)
+        if tokenizer.pad_token is None:
+            tokenizer.pad_token = tokenizer.eos_token
 
-    model = FastLanguageModel.get_peft_model(
-        model,
-        r = 16,
-        target_modules = ["q_proj", "k_proj", "v_proj", "o_proj",
-                         "gate_proj", "up_proj", "down_proj",],
-        lora_alpha = 32, lora_dropout = 0, bias = "none",
-        use_gradient_checkpointing = "unsloth",
-        random_state = 3407,
-    )
+        peft_config = LoraConfig(
+            r=16, lora_alpha=32, target_modules="all-linear",
+            task_type="CAUSAL_LM", lora_dropout=0.05
+        )
+        # We wrap model in peft here or let trainer do it
 
     # Dataset: Full 20-Incident Diversity
     env_classes = IncidentMindEnv.INCIDENT_CLASSES
@@ -116,6 +144,7 @@ def main():
         model=model, args=config,
         reward_funcs=[reward_incident_resolution, reward_format_json],
         train_dataset=dataset, processing_class=tokenizer,
+        peft_config=peft_config if not USE_UNSLOTH else None,
     )
 
     print("🚀 EVOLUTION START: Unsloth + GRPO active.")

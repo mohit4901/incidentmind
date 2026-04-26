@@ -13,7 +13,6 @@ ENV PYTORCH_ALLOC_CONF="expandable_segments:True"
 COPY ai/requirements.txt requirements.txt
 RUN pip install torch==2.5.1 torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
 RUN pip install transformers>=4.48.0 trl accelerate deepspeed vllm datasets peft bitsandbytes wandb
-RUN pip install "unsloth[colab-new] @ git+https://github.com/unslothai/unsloth.git"
 RUN pip install -r requirements.txt
 
 # Copy all project files
