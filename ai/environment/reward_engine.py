@@ -154,6 +154,11 @@ class RewardEngine:
             "accuracy": round(accuracy, 2)
         }
 
+    # Compatibility Layer for API
+    def validate_grounding(self, action: str, kwargs: dict, state: dict) -> float:
+        """Public API for the server to check for hallucinations."""
+        return self._hallucination_gate(state, action, kwargs)
+
     def calculate_seniority_report(self, reward, steps, resolved, correct_fix) -> dict:
         base_score = 50.0 if resolved else 0.0
         efficiency = max(0, 30.0 * (1.0 - (steps / 50.0)))
