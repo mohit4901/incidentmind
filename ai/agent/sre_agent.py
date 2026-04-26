@@ -27,6 +27,7 @@ class SREAgent:
     def __init__(self, model_type="trained"):
         try:
             api_key = os.environ.get("GROQ_API_KEY")
+            # Groq is our primary Brain. If Key is there, we get 70B intelligence.
             self.client = Groq(api_key=api_key) if api_key else None
         except Exception:
             self.client = None
@@ -40,12 +41,11 @@ class SREAgent:
         return action, kwargs
 
     def act_with_reasoning(self, obs: dict):
-        """Advanced interface returning (action, kwargs, reasoning)."""
+        """Intelligence-First inference. Prioritizes Groq 70B."""
         if not self.client:
-            # UNCRASHABLE FALLBACK: Diagnostic Seed
-            return "query_logs", {"service": "api-gateway", "filter_text": "error"}, "Neural Bridge Offline. Running local diagnostic seed..."
+            return "query_logs", {"service": "api-gateway", "filter_text": "error"}, "Neural signal offline. Please set GROQ_API_KEY in HF Secrets."
 
-        prompt = f"System State: {json.dumps(obs)}\nTask: Resolve the incident."
+        prompt = f"System State: {json.dumps(obs)}\nTask: Resolve the incident. Analyze deeply inside <thought>."
         
         try:
             response = self.client.chat.completions.create(
@@ -54,7 +54,7 @@ class SREAgent:
                     {"role": "system", "content": SYSTEM_PROMPT},
                     {"role": "user", "content": prompt}
                 ],
-                temperature=0.1
+                temperature=0.7 # Higher intelligence and creativity
             )
             raw_content = response.choices[0].message.content
             
