@@ -8,82 +8,89 @@ app_port: 7860
 pinned: false
 ---
 
-# IncidentMind: Neural Evolution for Autonomous Infrastructure Reliability
+# IncidentMind: Evolving Autonomous Senior SREs via GRPO
 
-IncidentMind is an advanced reinforcement learning platform dedicated to the professional evolution of large language models within the domain of Site Reliability Engineering (SRE). By synthesizing high-fidelity telemetry patterns with a multi-objective reward rubric, IncidentMind enables agents to surpass traditional heuristic methods and achieve grounded, verifiable diagnostic mastery.
-
-## Abstract
-
-Site Reliability Engineering currently faces a significant bottleneck: the cognitive load of navigating high-cardinality telemetry during system-critical failures. While large language models (LLMs) offer semantic reasoning capabilities, they are prone to hallucinations when disconnected from real-world infrastructure states. 
-
-IncidentMind addresses this challenge by providing a Gymnasium-compliant environment where agents must synthesize noisy logs, time-series metrics, and cluster states into actionable remediation policies. Through Group Relative Policy Optimization (GRPO), we demonstrate that agents can be evolved to prioritize data-driven evidence over speculative hypotheses, resulting in a 92% reduction in diagnostic hallucinations and a measurable alignment with senior-level SRE behavioral patterns.
+IncidentMind is an advanced reinforcement learning framework designed to foster the evolution of large language models into expert-level site reliability engineers. By integrating high-fidelity infrastructure telemetry with sparse and dense reward rubrics, we enable agents to resolve complex system failures with scientific precision.
 
 ---
 
-## Technical Innovation
+## 1. The Problem Space: The "Hallucination Gap" in Observability
+Modern infrastructure is too complex for static rule-based systems, yet current LLMs are too hallucination-prone for zero-shot diagnostics in production environments. **IncidentMind** bridges this "Hallucination Gap" by grounding LLM reasoning in **Real-World Telemetry**. We don't just ask an AI to fix a bug; we train it to hunt for verifiable evidence across logs, metrics, and cluster states.
 
-### Composable Reward Rubrics
-Unlike simplistic scoring mechanisms, IncidentMind utilizes a modular rubric system to provide a nuanced training signal:
-- **Forensic Rubric (40%)**: Evaluates the agent's ability to identify and target high-signal telemetry sources.
-- **Reasoning Rubric (20%)**: Grades the chain-of-thought grounding and logical coherence of diagnostic hypotheses.
-- **Remediation Rubric (30%)**: Measures the terminal success of remediation actions on the production state.
-- **Efficiency Rubric (10%)**: Penalizes SLA violations and redundant operational overhead.
+## 2. Technical Architecture & Tech Stack
+IncidentMind is built on a high-fidelity simulation stack orchestrated for Silicon-level performance:
 
-### High-Level Design (HLD)
+*   **Core Engine**: Gymnasium-based `IncidentMindEnv` compliant with the **OpenEnv 1.1.0 Standard**.
+*   **RL Framework**: Hugging Face **TRL** (Transformer Reinforcement Learning) for policy evolution.
+*   **Strategy**: **GRPO** (Group Relative Policy Optimization) — Efficiently aligns policy across groups without the memory overhead of a separate Critic model ($V_{\phi}$).
+*   **Backend/Inference**: **FastAPI** / **Groq** (Llama 3.3-70B) for live duals / **Qwen-2.5-1.5B** (Local) for RL training.
+*   **Frontend**: Neural Observation Deck (React 18 / Framer Motion / Lucide Icons).
 
+## 3. The Methodology: Neural Evolution via Rubrics
+We decompose the senior SRE's cognitive process into four **Composable Reward Rubrics**:
+
+| Rubric | Weight | Logic |
+| :--- | :--- | :--- |
+| **Forensic Rubric** | 40% | Rewards surgical targeting of logs and metrics over blind guessing. |
+| **Reasoning Rubric** | 20% | High-reward for `<thought>` blocks containing logical Bayesian anchors. |
+| **Remediation Rubric** | 30% | Terminal reward for successful system recovery and SLA adherence. |
+| **Efficiency Rubric** | 10% | Penalties for human paging noise and redundant operational overhead. |
+
+## 4. Full Workflow: From Alert to Resolution
 ```mermaid
-graph LR
-    subgraph SRE_Core
-    A[Neural Policy] -->|<thought>| B[Diagnostic Engine]
-    B -->|Action| C[OpenEnv Manifest]
-    end
-    subgraph Environment_Layer
-    C -->|API| D[IncidentMind Env]
-    D -->|Logs/Metrics| E[Telemetry Cluster]
-    E -->|Telemetry| B
-    end
-    subgraph Training_Loop
-    D -->|Rubric Check| F[Reward Engine]
-    F -->|Policy Update| A
-    end
+graph TD
+    A[Alert: OOM Kill Cascade] --> B{Agent Policy}
+    B --> C[Step 1: Forensic Query]
+    C -->|fetch_metric| D[Prometheus Mock]
+    D --> E[Analysis: Memory Leak Detected]
+    E --> F[Step 2: Neural Thought]
+    F -->|Logic Check| G[Step 3: Remediation]
+    G -->|restart_pod| H[Env State Change]
+    H --> I[Rubric Evaluation]
+    I -->|Reward Signal| B
 ```
 
 ---
 
-## Evaluation & Evidence of Training
+## 5. Training Evidence: Quantifying Mastery
+We provide verifiable quantitative evidence of policy evolution using our custom elite plotting engine.
 
-We provide verifiable evidence of policy evolution through quantitative metrics and reward convergence analysis.
+### Policy Convergence (Mean Reward)
+![Reward Convergence](https://raw.githubusercontent.com/mohitmudgil/incidentmind/main/ai/training/results/Reward_Convergence.png)
+*Figure 1: Mean reward growth over 50 steps showing the delta between Untrained Baseline and the Evolved IncidentMind Policy.*
 
-### Performance Benchmarking
-- **Diagnostic Precision**: 0.84 (Evolved) vs 0.12 (Baseline)
-- **F1 Score**: 0.79 (Evolved)
-- **Mean Reward per Episode**: +4.2 (Evolved) vs -0.8 (Baseline)
-
-### Training Artifacts
-- **Policy Evolution Curve**: ![Reward_Convergence](https://raw.githubusercontent.com/mohit4901/incidentmind/main/ai/training/results/Reward_Convergence.png)
-- **Neural Stability Plot**: ![Policy_Stability](https://raw.githubusercontent.com/mohit4901/incidentmind/main/ai/training/results/Policy_Stability_Loss.png)
-- **Training Script (Colab Ready)**: [trl_grpo_trainer.py](https://github.com/mohit4901/incidentmind/blob/main/ai/training/trl_grpo_trainer.py)
+### Neural Stability (KL Divergence)
+![Policy Stability](https://raw.githubusercontent.com/mohitmudgil/incidentmind/main/ai/training/results/Policy_Stability_Loss.png)
+*Figure 2: KL Divergence stabilization indicating the reduction in erratic reasoning as the model converges on expert SRE patterns.*
 
 ---
 
-## Submission Materials & Access
+## 6. How to Reproduce (The Engineering Rigor)
 
-IncidentMind is fully discoverable and runnable through the following official channels:
+### Local Evolution Setup
+Ensure your virtual environment is active before running the trainer.
 
-- **Hugging Face Space**: [IncidentMind Research Dashboard](https://cottoncloud-incidentmind-grpo-training.hf.space)
-- **Video Demonstration**: [Engineering Deep-Dive (YouTube)](https://youtube.com/example)
-- **Training Logs (WandB)**: [Research Run #4901](https://wandb.ai/example)
-- **Mini-Blog Writeup**: [Evolving Autonomous SREs on Hugging Face](https://huggingface.co/blog/cottoncloud/incidentmind)
+```bash
+# 1. Activate Environment
+source ai/venv/bin/activate
+
+# 2. Run Lightning Evolution (Optimized for Apple Silicon / CUDA)
+python3 ai/training/trl_grpo_trainer.py --max_steps 50 --model_id "Qwen/Qwen2.5-1.5B-Instruct"
+```
+
+### Dashboard Launch
+```bash
+# 1. Install & Launch Frontend
+cd frontend && npm install && npm run dev
+
+# 2. Launch AI Engine
+cd ai && python -m uvicorn api.main:app --port 7860
+```
 
 ---
 
-## Engineering Infrastructure
-- **Framework**: OpenEnv v1.1.0 Standard Compliance
-- **Backend**: FastAPI / Python 3.14 / Pydantic v2
-- **Frontend**: React 18.2 / Tailwind CSS / Framer Motion
-- **Inference**: Groq Llama-3.3-70B / Qwen-2.5-1.5B (Local)
+## 7. Conclusion: The Future of Autonomous Reliability
+IncidentMind proves that SRE is not just about rules; it’s about **Bayesian deduction grounded in telemetry**. By evolving models to prioritize verifiable evidence over noise, we are paving the way for infra-agents that don't just "fix" things, they **understand** them.
 
 ---
-
-## Statutory Verification
-This project is submitted for the OpenEnv Global Hackathon 2026. All environmental simulations, reward rubrics, and training pipelines are original works developed on top of the OpenEnv core framework.
+**Copyright © 2026 The IncidentMind Project. Developed for the OpenEnv Global Hackathon 2026.**
