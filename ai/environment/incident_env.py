@@ -85,23 +85,24 @@ class IncidentMindEnv:
     MAX_STEPS = 50
     SLA_MINUTES = 30
 
-    def __init__(self):
+    def __init__(self, chaos_level: int = 0):
         self.incident_gen = IncidentGenerator()
         self.log_gen = LogGenerator()
         self.metric_gen = MetricGenerator()
         self.reward_engine = RewardEngine()
+        self.chaos_level = chaos_level # 0 = Standard, 10 = Maximum Chaos
         self._state: Optional[IncidentState] = None
         self._step_count = 0
         self._episode_reward = 0.0
         self._trajectory = []
 
-    def reset(self, forced_class: Optional[str] = None) -> dict:
+    def reset(self, forced_class: Optional[str] = None, chaos_level: Optional[int] = None) -> dict:
         """Start a new incident episode."""
+        if chaos_level is not None:
+            self.chaos_level = chaos_level
+            
         if forced_class and forced_class in self.INCIDENT_CLASSES:
             incident_class = forced_class
-        elif forced_class and forced_class != "random":
-            # Best effort matching if random but invalid passed
-            incident_class = random.choice(self.INCIDENT_CLASSES) 
         else:
             incident_class = random.choice(self.INCIDENT_CLASSES)
             
@@ -383,20 +384,21 @@ class IncidentMindEnv:
         self._state._resolved = True
         self._state.action_history.append("mark_resolved()")
         
-        final_reward = self.reward_engine.score_resolution(
+        total_reward = self.reward_engine.score_resolution(
             rca_text=root_cause_analysis,
             fix_description=fix_applied,
             true_root_cause=self._state._true_root_cause,
             true_fix=self._state._true_fix_action,
             correct_fix_applied=self._state._correct_fix_applied,
             time_elapsed=self._state.time_elapsed,
-            sla_minutes=self._state.sla_minutes,
+            sla_minutes=self.SLA_MINUTES,
             fix_attempts=self._state._fix_attempts,
             step_count=self._step_count,
-            hypothesis_log=self._state.hypothesis_log
+            hypothesis_log=self._state.hypothesis_log,
+            action_history=self._state.action_history
         )
         
-        self._apply_reward(final_reward, "RESOLUTION")
+        self._apply_reward(total_reward, "RESOLUTION")
         
         return {
             "resolved": True,

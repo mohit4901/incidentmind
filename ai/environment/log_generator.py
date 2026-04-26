@@ -59,41 +59,47 @@ SIGNAL_LINES = {
 
 
 class LogGenerator:
-    def generate(self, incident_class: str, num_lines: int = 50) -> list[str]:
-        noise_count = int(num_lines * 0.80)
-        signal_count = int(num_lines * 0.20)
+    def generate(self, incident_class: str, num_lines: int = 50, chaos_level: int = 0) -> list[str]:
+        noise_ratio = 0.80 + (chaos_level * 0.01) # More chaos = potentially more noise
+        noise_count = int(num_lines * noise_ratio)
+        signal_count = num_lines - noise_count
         
         signal_pool = SIGNAL_LINES.get(incident_class, [
-            f"ERROR service experiencing issues related to {incident_class}"
+            f"ERROR service issues relating to {incident_class}"
         ])
         
         lines = []
         
-        # Generate noise
+        # 1. Generate standard noise
         for _ in range(noise_count):
-            template = random.choice(NOISE_LINES)
+            # Chaos Shit: Inject "Ghost Signals" from other classes if chaos is high
+            if chaos_level > 5 and random.random() < (chaos_level * 0.05):
+                wrong_class = random.choice(list(SIGNAL_LINES.keys()))
+                if wrong_class != incident_class:
+                    template = random.choice(SIGNAL_LINES[wrong_class])
+                else:
+                    template = random.choice(NOISE_LINES)
+            else:
+                template = random.choice(NOISE_LINES)
+                
             ts = self._random_timestamp()
             rand = random.randint(100, 999)
             lines.append(template.format(ts=ts, rand=rand))
         
-        # Inject signal (scattered, not at the end)
+        # 2. Inject real signal
         for _ in range(signal_count):
             template = random.choice(signal_pool)
             ts = self._random_timestamp()
             rand = random.randint(100, 999)
             lines.append(template.format(ts=ts, rand=rand))
         
-        # Shuffle so signal is not always at end
         random.shuffle(lines)
-        
-        # Add timestamps in order
         lines.sort()
-        
         return lines
     
-    def query(self, service: str, incident_class: str, filter_text: str = "") -> list[str]:
+    def query(self, service: str, incident_class: str, filter_text: str = "", chaos_level: int = 0) -> list[str]:
         """Return filtered logs relevant to service query."""
-        all_logs = self.generate(incident_class, 100)
+        all_logs = self.generate(incident_class, 100, chaos_level=chaos_level)
         
         if filter_text:
             filtered = [l for l in all_logs if filter_text.lower() in l.lower()]

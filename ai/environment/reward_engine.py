@@ -163,44 +163,81 @@ class RewardEngine:
             return 0.3
         return 0.05
     
+    def score_tenet_adherence(self, action_history) -> float:
+        """
+        Rewards adherence to Senior SRE Tenets:
+        1. Observable Evidence -> Hypothesis -> Action (The Data-Driven Tenet)
+        """
+        tenet_bonus = 0.0
+        
+        # Check if logs/metrics came BEFORE hypothesis
+        first_hyp = -1
+        last_obs = -1
+        
+        for i, action in enumerate(action_history):
+            if any(x in action for x in ["query_logs", "fetch_metric", "run_kubectl"]):
+                last_obs = i
+            if "post_hypothesis" in action and first_hyp == -1:
+                first_hyp = i
+        
+        if first_hyp > last_obs and last_obs != -1:
+            tenet_bonus += 0.5  # Data-driven deduction bonus
+            
+        # Check if verification came AFTER fix
+        first_fix = -1
+        verification = -1
+        for i, action in enumerate(action_history):
+            if "execute_fix" in action and first_fix == -1:
+                first_fix = i
+            if i > first_fix and first_fix != -1:
+                 if any(x in action for x in ["fetch_metric", "query_logs"]):
+                     verification = i
+                     
+        if verification > first_fix and first_fix != -1:
+            tenet_bonus += 0.5  # Post-fix verification bonus (Best Practice!)
+            
+        return tenet_bonus
+
+    def calculate_economic_impact(self, steps, resolved) -> float:
+        """Cool shit: Calculate simulated revenue saved ($10k / min)"""
+        if not resolved: return -500000.0 # Catastrophic failure
+        
+        # Base cost of downtime is $500k. Every step takes ~2 mins.
+        savings = 500000.0 - (steps * 2.0 * 10000.0)
+        return max(0, savings)
+
     def score_resolution(self, rca_text, fix_description, true_root_cause, true_fix,
                          correct_fix_applied, time_elapsed, sla_minutes, fix_attempts,
-                         step_count, hypothesis_log) -> float:
+                         step_count, hypothesis_log, action_history) -> float:
         """
-        Final rubric-based resolution scorer.
-        Maps to OpenEnv Rubric system.
+        ULTRA-STRONG GRADING SYSTEM
         """
         total_reward = 0.0
         
         # 1. RCA quality
-        signals = ROOT_CAUSE_SIGNALS.get(true_root_cause.split()[0].lower(), [])
+        incident_type = true_root_cause.split()[0].lower().replace(":", "")
+        signals = ROOT_CAUSE_SIGNALS.get(incident_type, [])
         rca_matches = sum(1 for sig in signals if sig in rca_text.lower())
-        rca_score = min(2.0, rca_matches * 0.4)
+        rca_score = min(2.0, rca_matches * 0.5)
         total_reward += rca_score
         
         # 2. Fix correctness (Major weight)
         if correct_fix_applied:
-            total_reward += 3.0 # Increased from 1.5
-        else:
-            total_reward -= 1.0
-        
-        # 3. Efficiency Multiplier (Top 5 Winning Logic)
-        # We reward "Surgical Precision" — few steps, early resolution.
-        if correct_fix_applied:
-            efficiency_bonus = max(0, 2.0 * (1.0 - (step_count / 50.0)))
-            total_reward += efficiency_bonus
-        
-        # 4. SLA Bonus
-        if time_elapsed <= sla_minutes * 0.3:
-            total_reward += 1.5 # Fast resolution
-        elif time_elapsed <= sla_minutes:
-            total_reward += 0.5
-        else:
-            total_reward -= 1.0
+            total_reward += 4.0 # Increased from 3.0
             
-        # 5. Anti-Spam Penalty
-        # If agent took >10 steps for a 5-step problem, penalise the "noise"
-        if step_count > 20:
-            total_reward -= (step_count - 20) * 0.05
+            # 3. SRE Tenet Adherence (Logical flow)
+            tenet_bonus = self.score_tenet_adherence(action_history)
+            total_reward += tenet_bonus
+            
+            # 4. Economic Multiplier
+            # Resolution at step 5 is worth way more than step 45
+            efficiency_factor = max(0.5, 2.0 * (1.0 - (step_count / 50.0)))
+            total_reward *= efficiency_factor
+        else:
+            total_reward -= 2.0 # Heavier penalty for failing to fix
+        
+        # 5. Anti-Spam / Noise Penalty
+        if step_count > 15:
+            total_reward -= (step_count - 15) * 0.1
         
         return round(total_reward, 2)

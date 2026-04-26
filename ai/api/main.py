@@ -101,14 +101,36 @@ def run_episode(request: EpisodeRequest):
         obs = new_obs
         step += 1
     
+    total_reward = sum(t["reward"] for t in trajectory)
+    resolved = done and info.get("done_reason") == "resolved"
+    
+    # Senior SRE Mentor Feedback (Bestest Backend Shit)
+    mentor_feedback = _generate_mentor_feedback(trajectory, resolved, info.get("done_reason"))
+    
     return {
         "trajectory": trajectory,
-        "final_reward": sum(t["reward"] for t in trajectory),
+        "final_reward": round(total_reward, 2),
         "steps_taken": step,
         "incident_class": obs.get("alert", {}).get("title", "unknown"),
-        "resolved": done and info.get("done_reason") == "resolved",
-        "done_reason": info.get("done_reason", "unknown")
+        "resolved": resolved,
+        "done_reason": info.get("done_reason", "unknown"),
+        "mentor_feedback": mentor_feedback
     }
+
+def _generate_mentor_feedback(trajectory, resolved, reason):
+    """Cool shit: Senior SRE code review for the AI agent."""
+    if not trajectory: return "No data."
+    
+    actions = [t["action"] for t in trajectory]
+    steps = len(trajectory)
+    
+    if resolved:
+        if steps < 10:
+            return f"Surgical performance. You identified the signals in {steps} steps and executed a clean fix. Senior SRE level."
+        else:
+            return f"Resolved, but verbose. You took {steps} steps. Next time, filter logs more aggressively to find the signal faster."
+    else:
+        return f"Incident breached. Reason: {reason}. You spent too long on {actions[0] if actions else 'nothing'}. In real life, this would cost $500k."
 
 @app.websocket("/ws/run-episode")
 async def websocket_run_episode(websocket: WebSocket):
