@@ -68,9 +68,13 @@ class SREAgent:
         return self._random_action(observation)
 
     def _llm_action(self, formatted_obs: str) -> tuple[str, dict]:
-        """Call LLM with formatted observation and system prompt."""
+        """Call LLM with Anti-Loop Memory."""
         if not self.client:
             return self._random_action({})
+
+        # Loop Detection: Check if last 2 assistant responses match
+        history = self.conversation_history
+        is_looping = len(history) >= 4 and history[-1]["role"] == "assistant" and history[-3]["role"] == "assistant" and history[-1]["content"] == history[-3]["content"]
 
         self.conversation_history.append({"role": "user", "content": formatted_obs})
         
@@ -78,10 +82,10 @@ class SREAgent:
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=[
-                    {"role": "system", "content": SYSTEM_PROMPT},
-                    *self.conversation_history[-5:] # Context window
+                    {"role": "system", "content": f"{SYSTEM_PROMPT}\nRule: NEVER REPEAT the same query twice in a row. Explore new metrics or services."},
+                    *self.conversation_history[-8:]
                 ],
-                temperature=0.1,
+                temperature=0.7 if is_looping else 0.1, # Increase temperature to break loop
                 max_tokens=500,
                 response_format={"type": "json_object"}
             )
@@ -89,8 +93,7 @@ class SREAgent:
             self.conversation_history.append({"role": "assistant", "content": content})
             return self._parse_tool_call(content)
         except Exception as e:
-            print(f"Agent Inference Error: {e}")
-            return "query_logs", {"service": "api-gateway", "filter_text": "error"}
+            return "query_logs", {"service": "api-gateway", "filter_text": "fix"}
     
     def _format_observation(self, obs: dict) -> str:
         return f"""

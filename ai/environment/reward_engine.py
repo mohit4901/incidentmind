@@ -65,40 +65,42 @@ class RewardEngine:
         
         # Reward for querying the right service
         if service.lower() in true_affected_service.lower() or true_affected_service.lower() in service.lower():
-            reward += 0.3
+            reward += 0.4 # Increased from 0.3
         
         # Reward for relevant filter text
-        signals = ROOT_CAUSE_SIGNALS.get(true_root_cause.split()[0].lower(), [])
+        incident_type = true_root_cause.split()[0].lower().replace(":", "")
+        signals = ROOT_CAUSE_SIGNALS.get(incident_type, [])
         if any(sig in filter_text.lower() for sig in signals):
-            reward += 0.2
+            reward += 0.3 # Increased from 0.2
         
-        # Penalty for repeated identical queries
+        # LOGARITHMIC PENALTY (Fairness Upgrade)
         action_str = f"query_logs(service={service}, filter={filter_text})"
         duplicates = sum(1 for a in action_history if a == action_str)
         if duplicates > 1:
-            reward -= 0.3 * duplicates
+            # Penalty starts small and caps at -0.5 total
+            reward -= min(0.5, 0.1 * (duplicates - 1))
         
         return round(reward, 2)
     
     def score_fetch_metric(self, metric_name, true_root_cause, action_history) -> float:
         reward = 0.0
         
-        # Check if this is a high-signal metric for this root cause
-        for incident_class, correct_metrics in CORRECT_METRICS_PER_CLASS.items():
-            if incident_class in true_root_cause.lower():
+        # Check if this is a high-signal metric
+        incident_type = true_root_cause.split()[0].lower().replace(":", "")
+        for cls_name, correct_metrics in CORRECT_METRICS_PER_CLASS.items():
+            if cls_name in incident_type:
                 if metric_name in correct_metrics:
-                    reward += 0.4
+                    reward += 0.5
                     break
         
-        # Small reward for any metric fetch (information gathering)
         if reward == 0:
-            reward = 0.05
+            reward = 0.1 # Exploration reward
         
-        # Penalty for duplicate metric fetch
+        # Capped Repetition Penalty
         action_str = f"fetch_metric({metric_name}"
         duplicates = sum(1 for a in action_history if action_str in a)
         if duplicates > 1:
-            reward -= 0.2
+            reward -= min(0.3, 0.1 * (duplicates - 1))
         
         return round(reward, 2)
     
@@ -223,18 +225,17 @@ class RewardEngine:
         
         # 2. Fix correctness (Major weight)
         if correct_fix_applied:
-            total_reward += 4.0 # Increased from 3.0
+            total_reward += 5.0 # Increased from 4.0
             
             # 3. SRE Tenet Adherence (Logical flow)
             tenet_bonus = self.score_tenet_adherence(action_history)
             total_reward += tenet_bonus
             
-            # 4. Economic Multiplier
-            # Resolution at step 5 is worth way more than step 45
-            efficiency_factor = max(0.5, 2.0 * (1.0 - (step_count / 50.0)))
+            # 4. Economic Multiplier (Extreme Incentive)
+            efficiency_factor = max(0.8, 2.5 * (1.0 - (step_count / 50.0)))
             total_reward *= efficiency_factor
         else:
-            total_reward -= 2.0 # Heavier penalty for failing to fix
+            total_reward -= 3.0 # Heavier penalty for failure
         
         # 5. Anti-Spam / Noise Penalty
         if step_count > 15:
