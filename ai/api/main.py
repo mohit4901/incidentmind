@@ -118,17 +118,17 @@ def root():
     </html>
     """
 
-@app.get("/ping")
+@app.get("/api/ping")
 def ping():
     """Keep-alive endpoint for HuggingFace Spaces."""
     return {"status": "pong", "timestamp": asyncio.get_event_loop().time()}
 
-@app.get("/health")
+@app.get("/api/health")
 def health():
     return {"status": "ok", "service": "incidentmind-ai"}
 
 
-@app.post("/run-episode")
+@app.post("/api/run-episode")
 def run_episode(request: EpisodeRequest):
     """Run a single episode and return the full trajectory."""
     env = IncidentMindEnv()
