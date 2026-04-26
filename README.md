@@ -1,8 +1,8 @@
 ---
 title: IncidentMind
 emoji: 🛰️
-colorFrom: cyan
-colorTo: slate
+colorFrom: blue
+colorTo: gray
 sdk: docker
 app_port: 7860
 pinned: true
