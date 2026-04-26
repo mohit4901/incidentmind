@@ -11,32 +11,34 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-SYSTEM_PROMPT = """You are an expert Site Reliability Engineer (SRE) handling a live production incident.
+SYSTEM_PROMPT = """You are a Principal SRE Agent at a high-scale tech company.
 
-You have access to these tools:
-- query_logs(service, filter_text): Search logs for a specific service
-- fetch_metric(metric_name, window): Get a Prometheus metric time series  
-- run_kubectl(command): Run kubectl commands (read-only)
-- read_runbook(section): Read a specific runbook section
-- post_hypothesis(hypothesis, confidence): Post your root cause hypothesis
-- execute_fix(action, target, parameters): Execute a remediation action
-- check_deploy_diff(sha): Check what changed in a deploy
-- query_slack(channel, keyword): Search Slack for context
-- page_human(reason, urgency): Escalate to human (use only if truly stuck)
-- mark_resolved(root_cause_analysis, fix_applied): Mark incident as resolved
+REASONING PROTOCOL:
+1. ALWAYS start your response with a <thought> block.
+2. Analyze the current signals: What is broken? What is the evidence?
+3. State your next intention clearly.
+4. Respond with EXACTLY one JSON tool call after the thought block.
 
 STRICT RULES:
-1. ALWAYS start by reading the alert carefully
-2. NEVER execute a fix without first posting a hypothesis
-3. Query logs and metrics BEFORE hypothesizing
-4. If you try a fix and metrics don't improve, do NOT retry the same fix
-5. Be methodical: Observe → Hypothesize → Investigate → Fix → Verify → Resolve
-6. Time matters — SLA is 30 minutes. Be efficient.
+- DO NOT hallucinate. Use only pod names and services mentioned in the state.
+- Post a hypothesis BEFORE executing a fix.
+- Query logs/metrics BEFORE hypothesizing.
 
-Respond with EXACTLY ONE tool call per response in this JSON format:
-{"tool": "tool_name", "args": {"arg1": "value1", "arg2": "value2"}}
+Format:
+<thought>Analyze signals here...</thought>
+{"tool": "tool_name", "args": {...}}
 
-Think step by step before each action. What do you know? What do you need to know?"""
+Tools available:
+- query_logs(service, filter_text)
+- fetch_metric(metric_name, window)
+- run_kubectl(command)
+- read_runbook(section)
+- post_hypothesis(hypothesis, confidence)
+- execute_fix(action, target, parameters)
+- check_deploy_diff(sha)
+- query_slack(channel, keyword)
+- page_human(reason, urgency)
+- mark_resolved(root_cause_analysis, fix_applied)"""
 
 
 class SREAgent:
@@ -55,26 +57,28 @@ class SREAgent:
         return self._client
     
     def act(self, observation: dict) -> tuple[str, dict]:
-        """Given observation, return (action_name, kwargs)."""
+        """Backward compatibility for simple act."""
+        action, kwargs, _ = self.act_with_reasoning(observation)
+        return action, kwargs
+
+    def act_with_reasoning(self, observation: dict) -> tuple[str, dict, str]:
+        """Given observation, return (action_name, kwargs, raw_llm_content)."""
         formatted_obs = self._format_observation(observation)
         
         if self.model_type == "untrained":
-            return self._random_action(observation)
+            action, kwargs = self._random_action(observation)
+            return action, kwargs, "No reasoning (untrained mode)."
             
-        if self.model_type == "trained":
-            # In Hackathon, we use Groq for fast demo, or local PEFT model if available
-            return self._llm_action(formatted_obs)
+        return self._llm_action_with_raw(formatted_obs)
 
-        return self._random_action(observation)
-
-    def _llm_action(self, formatted_obs: str) -> tuple[str, dict]:
-        """Call LLM with Anti-Loop Memory."""
+    def _llm_action_with_raw(self, formatted_obs: str) -> tuple[str, dict, str]:
+        """Call LLM and return both action and raw reasoning."""
         if not self.client:
-            return self._random_action({})
+             a, k = self._random_action({})
+             return a, k, "No API client."
 
-        # Loop Detection: Check if last 2 assistant responses match
         history = self.conversation_history
-        is_looping = len(history) >= 4 and history[-1]["role"] == "assistant" and history[-3]["role"] == "assistant" and history[-1]["content"] == history[-3]["content"]
+        is_looping = len(history) >= 4 and history[-1]["role"] == "assistant" and history[-3]["role"] == "assistant" 
 
         self.conversation_history.append({"role": "user", "content": formatted_obs})
         
@@ -82,18 +86,19 @@ class SREAgent:
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=[
-                    {"role": "system", "content": f"{SYSTEM_PROMPT}\nRule: NEVER REPEAT the same query twice in a row. Explore new metrics or services."},
+                    {"role": "system", "content": f"{SYSTEM_PROMPT}\nRule: BE CONCISE."},
                     *self.conversation_history[-8:]
                 ],
-                temperature=0.7 if is_looping else 0.1, # Increase temperature to break loop
-                max_tokens=500,
-                response_format={"type": "json_object"}
+                temperature=0.7 if is_looping else 0.1,
+                max_tokens=300,
             )
             content = response.choices[0].message.content
             self.conversation_history.append({"role": "assistant", "content": content})
-            return self._parse_tool_call(content)
+            action, kwargs = self._parse_tool_call(content)
+            return action, kwargs, content
         except Exception as e:
-            return "query_logs", {"service": "api-gateway", "filter_text": "fix"}
+            print(f"Turbo Fallback Triggered: {e}")
+            return "query_logs", {"service": "postgres", "filter_text": "error"}, f"Error: {e}"
     
     def _format_observation(self, obs: dict) -> str:
         return f"""

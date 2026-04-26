@@ -5,6 +5,7 @@ import { AgentActionLog } from '../components/AgentActionLog';
 import { RewardChart } from '../components/RewardChart';
 import { EpochProgress } from '../components/EpochProgress';
 import { StatusBadge } from '../components/StatusBadge';
+import { DuelView } from './DuelView';
 
 const getBaseURL = () => {
   if (import.meta.env.VITE_BACKEND_URL) return import.meta.env.VITE_BACKEND_URL;
@@ -22,6 +23,7 @@ export default function Dashboard() {
   const [trainingStatus, setTrainingStatus] = useState(null);
   const [rewardHistory, setRewardHistory] = useState([]);
   const [recentEpisodes, setRecentEpisodes] = useState([]);
+  const [showDuel, setShowDuel] = useState(false);
 
   useEffect(() => {
     const poll = setInterval(async () => {
@@ -68,13 +70,46 @@ export default function Dashboard() {
     'certificate_expiry', 'disk_saturation',
   ];
 
+  const [systemHealth, setSystemHealth] = useState(100);
+
+  // Update Health based on reward and steps
+  useEffect(() => {
+    if (isRunning) {
+        setSystemHealth(prev => Math.max(10, prev - 1)); // Visible drain
+    } else if (episodeResult?.resolved) {
+        setSystemHealth(100); // Immediate recovery
+    }
+  }, [isRunning, agentSteps, episodeResult]);
+
+  if (showDuel) return <DuelView onBack={() => setShowDuel(false)} />;
+
   return (
-    <div className="h-[calc(100vh-100px)] flex flex-col relative z-10">
+    <div className={`h-[calc(100vh-100px)] flex flex-col relative z-10 transition-all duration-700 ${
+       isRunning ? 'bg-accent-red/[0.02] shadow-[inset_0_0_100px_rgba(255,51,85,0.05)]' : 'bg-void'
+    }`}>
+      {/* CRISIS ALERT HEADER (NEW) */}
+      {isRunning && (
+         <div className="absolute top-0 left-0 right-0 py-1 bg-accent-red/20 border-b border-accent-red/40 flex justify-center items-center gap-4 z-50 animate-pulse">
+            <span className="text-[10px] font-black text-accent-red tracking-[0.5em] uppercase">SYSTEM BREACH DETECTED</span>
+            <div className="flex gap-2">
+               {[1,2,3].map(i => <div key={i} className="w-1.5 h-1.5 bg-accent-red rounded-full" />)}
+            </div>
+         </div>
+      )}
+
       {/* Top Banner with Instructions */}
       <div className="px-6 py-3 bg-accent-cyan/5 border-b border-accent-cyan/10 flex items-center justify-between">
          <div className="flex items-center gap-4">
             <span className="text-[10px] font-bold text-accent-cyan tracking-widest uppercase">Protocol Alpha:</span>
-            <span className="text-[10px] text-text-secondary uppercase tracking-tight">Run episodes to observe RL policy evolution. Trained agents prioritize surgical fixes over random exploration.</span>
+            <div className="w-[150px] h-2 bg-white/5 rounded-full overflow-hidden border border-white/10">
+               <div 
+                  className={`h-full transition-all duration-1000 ${systemHealth < 40 ? 'bg-accent-red' : 'bg-accent-cyan'}`}
+                  style={{ width: `${systemHealth}%` }}
+               />
+            </div>
+            <span className={`text-[9px] font-bold ${systemHealth < 40 ? 'text-accent-red animate-pulse' : 'text-accent-cyan'}`}>
+               CORE_STABILITY: {systemHealth}%
+            </span>
          </div>
          <div className="flex gap-4 text-[9px] text-text-muted font-mono">
             <span>[MEM: 16.4GB]</span>
@@ -117,6 +152,13 @@ export default function Dashboard() {
           >
             {isRunning ? '⟳ Signal Active...' : '▶ Run Episode'}
           </button>
+          
+          <button
+            onClick={() => setShowDuel(true)}
+            className="px-6 py-2 bg-accent-violet/20 border border-accent-violet/40 text-[#a78bfa] text-[10px] font-bold tracking-[0.2em] uppercase hover:bg-accent-violet/40 transition-all"
+          >
+            ⚔️ BATTLE_DUEL
+          </button>
         </div>
       </div>
 
@@ -155,6 +197,16 @@ export default function Dashboard() {
 
         {/* Intelligence Side */}
         <div className="col-span-4 overflow-y-auto p-6 space-y-6 bg-obsidian/30">
+          
+          {/* Thinking HUD (NEW) */}
+          <div className="p-5 border border-accent-cyan/30 bg-accent-cyan/[0.03] shadow-[0_0_15px_rgba(0,212,255,0.05)] relative group">
+             <div className="absolute top-0 right-0 p-2 text-[8px] text-accent-cyan opacity-40 font-mono tracking-tighter">AI_THOUGHT_STREAM</div>
+             <div className="section-label mb-3">Live_Neural_Hypothesis</div>
+             <div className="text-[12px] text-text-primary font-bold leading-relaxed italic border-l-2 border-accent-cyan/50 pl-4 py-1">
+                {agentSteps.length > 0 ? (agentSteps[agentSteps.length-1].hypothesis || "Analyzing system telemetry...") : "Awaiting Operational Context..."}
+             </div>
+          </div>
+
           {/* Multi-Curve Analytics */}
           <div className="crystal-card p-5 space-y-4">
             <div className="flex justify-between items-center">

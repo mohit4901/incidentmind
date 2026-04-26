@@ -40,6 +40,12 @@ body {
 }
 @keyframes neonPulse { 0%, 100% { filter: brightness(1) drop-shadow(0 0 5px rgba(0, 212, 255, 0.5)); } 50% { filter: brightness(1.2) drop-shadow(0 0 12px rgba(0, 212, 255, 0.7)); } }
 @keyframes cursorBlink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+@keyframes progressIndefinite { 0% { transform: translateX(-100%); } 100% { transform: translateX(200%); } }
+@keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+
+.animate-progress-indefinite { animation: progressIndefinite 1.5s ease-in-out infinite; }
+.animate-blink { animation: cursorBlink 0.8s step-end infinite; }
+.animate-slide-up { animation: slideUp 0.4s ease-out; }
 
 /* Shared Utilities */
 .section-label {

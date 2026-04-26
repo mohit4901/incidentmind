@@ -9,11 +9,16 @@ export function IncidentPanel({ alert, podStatus, recentDeploys, slackThread }) 
   }
 
   return (
-    <div className="crystal-card flex flex-col h-full animate-fade-in">
+    <div className={`crystal-card flex flex-col h-full animate-fade-in transition-all duration-500 ${
+      alert.severity === 'P0' ? 'shadow-[0_0_30px_rgba(255,51,85,0.1)] border-accent-red/20' : 'border-white/[0.04]'
+    }`}>
       {/* Alert Header */}
-      <div className={`px-5 py-4 border-b border-white/[0.04] bg-gradient-to-r ${
-        alert.severity === 'P0' ? 'from-accent-red/20 to-transparent' : 'from-accent-amber/20 to-transparent'
+      <div className={`px-5 py-4 border-b border-white/[0.04] bg-gradient-to-r relative overflow-hidden ${
+        alert.severity === 'P0' ? 'from-accent-red/25 to-transparent' : 'from-accent-amber/20 to-transparent'
       }`}>
+        {alert.severity === 'P0' && (
+           <div className="absolute inset-0 bg-accent-red/5 animate-pulse" />
+        )}
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-3">
             <span className={`text-[10px] font-bold px-2 py-0.5 border tracking-widest ${

@@ -95,6 +95,8 @@ def run_episode(request: EpisodeRequest):
             "action": action,
             "kwargs": kwargs,
             "reward": reward,
+            "finding": info.get("finding", "Exploring neural traces..."), # The REAL signal
+            "hypothesis": new_obs.get("hypothesis_log", [])[-1] if new_obs.get("hypothesis_log") else "Analyzing alerts...",
             "cumulative_reward": round(sum(t["reward"] for t in trajectory) + reward, 2),
             "observation_summary": {
                 "time_elapsed": new_obs.get("time_elapsed_minutes", 0),
@@ -165,7 +167,14 @@ async def websocket_run_episode(websocket: WebSocket):
         final_reward = 0.0
         
         while not done and step < max_steps:
-            action, kwargs = agent.act(obs)
+            # The act() method now returns (action, kwargs, raw_response)
+            action, kwargs, raw_response = agent.act_with_reasoning(obs)
+            
+            # 1. ANTI-HALLUCINATION GATE
+            grounding_penalty = env.reward_engine.validate_grounding(action, kwargs, obs)
+            
+            # 2. REASONING SCORE (CoT Bonus)
+            reasoning_reward = env.reward_engine.score_reasoning(raw_response)
             
             if action == "execute_fix":
                 # Pause and ask for approval
@@ -193,7 +202,9 @@ async def websocket_run_episode(websocket: WebSocket):
                     await websocket.send_text(json.dumps({"type": "step", "step": denied_step}))
                     break
             
-            new_obs, reward, done, info = env.step(action, **kwargs)
+            new_obs, base_reward, done, info = env.step(action, **kwargs)
+            # Combine signals: Base Env Reward + Hallucination Penalty + Reasoning Bonus
+            reward = round(base_reward + grounding_penalty + reasoning_reward, 2)
             final_reward += reward
             
             step_record = {
@@ -362,3 +373,56 @@ def _save_reward_curve(rewards: list):
         plt.close()
     except Exception as e:
         print(f"Could not save plot: {e}")
+
+@app.post("/api/run-duel")
+async def run_duel(request: EpisodeRequest):
+    """
+    Run a side-by-side comparison between Trained and Untrained agents on the SAME incident.
+    """
+    print(f"[DUEL_START] Initiating Duel for Incident: {request.incident_class}")
+    
+    # 1. Run Untrained
+    untrained_env = IncidentMindEnv()
+    untrained_agent = SREAgent(model_type="untrained")
+    # Reset both with the SAME SEED logic (internal to reset() for now)
+    seed_obs = untrained_env.reset(forced_class=request.incident_class)
+    untrained_result = _internal_run_episode(untrained_env, untrained_agent, seed_obs, request.max_steps)
+    
+    # 2. Run Trained (Expert)
+    trained_env = IncidentMindEnv()
+    trained_agent = SREAgent(model_type="trained")
+    trained_obs = trained_env.reset(forced_class=request.incident_class) 
+    trained_result = _internal_run_episode(trained_env, trained_agent, trained_obs, request.max_steps)
+    
+    print(f"[DUEL_END] Trained: {trained_result['final_reward']} | Untrained: {untrained_result['final_reward']}")
+    
+    return {
+        "untrained": untrained_result,
+        "trained": trained_result,
+        "incident": request.incident_class
+    }
+
+def _internal_run_episode(env, agent, obs, max_steps):
+    trajectory = []
+    done = False
+    step = 0
+    while not done and step < max_steps:
+        action, kwargs = agent.act(obs)
+        new_obs, reward, done, info = env.step(action, **kwargs)
+        trajectory.append({
+            "step": step + 1,
+            "action": action,
+            "reward": reward,
+            "finding": info.get("finding", "Exploring neural traces..."),
+            "hypothesis": new_obs.get("hypothesis_log", [])[-1] if new_obs.get("hypothesis_log") else "Analyzing...",
+            "cumulative_reward": round(sum(t["reward"] for t in trajectory) + reward, 2)
+        })
+        obs = new_obs
+        step += 1
+    
+    return {
+        "trajectory": trajectory,
+        "resolved": done and env._state._resolved,
+        "final_reward": round(sum(t["reward"] for t in trajectory), 2),
+        "steps": step
+    }

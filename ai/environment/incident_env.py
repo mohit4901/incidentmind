@@ -451,9 +451,21 @@ class IncidentMindEnv:
             "time_elapsed": self._state.time_elapsed
         })
         
+        # Extraction of the "Primary Finding" for visibility
+        finding = "No signal detected."
+        if "logs" in result:
+             finding = next((l for l in result["logs"] if "ERR" in l or "WARN" in l or "FATAL" in l or "SLOW" in l), result["logs"][0] if result["logs"] else "No relevant logs.")
+        elif "metric" in result:
+             finding = f"Metric value out of bounds." if any(v > 0.8 for v in result["metric"].get("values", [])) else "Metric stable."
+        elif "outcome" in result:
+             finding = result["outcome"]
+        elif "accepted" in result:
+             finding = "Hypothesis committed to neural memory."
+             
         info = {
             "trajectory": self._trajectory,
-            "done_reason": self._get_done_reason() if done else None
+            "done_reason": self._get_done_reason() if done else None,
+            "finding": finding
         }
         
         return self.state(), reward, done, info

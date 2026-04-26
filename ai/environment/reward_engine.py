@@ -217,32 +217,52 @@ class RewardEngine:
         savings = 500000.0 - (steps * 2.0 * 10000.0)
         return max(0, savings)
 
+    def score_reasoning(self, content: str) -> float:
+        """
+        Rewards the DeepSeek-style <thought> block. 
+        """
+        reward = 0.0
+        if "<thought>" in content and "</thought>" in content:
+            thought_text = content.split("<thought>")[1].split("</thought>")[0].lower()
+            logical_keywords = ["because", "since", "based on", "observed", "indicates", "hypothesis"]
+            matches = sum(1 for k in logical_keywords if k in thought_text)
+            
+            if len(thought_text) > 50:
+                reward += 0.5 
+                reward += min(1.0, 0.2 * matches) 
+        return round(reward, 2)
+
+    def validate_grounding(self, action, kwargs, env_state) -> float:
+        """
+        ANTI-HALLUCINATION GATE.
+        """
+        penalty = 0.0
+        target = kwargs.get("target") or kwargs.get("service") or kwargs.get("pod_name")
+        
+        if target:
+            # Check if target exists in system state
+            existing_services = ["api-gateway", "checkout", "postgres", "payment", "inventory"]
+            existing_pods = list(env_state.get("pod_status", {}).keys())
+            
+            if target not in existing_services and target not in existing_pods and "restart" in action:
+                print(f"[HALLUCINATION_DETECTED] Agent tried to access: {target}")
+                penalty -= 5.0 # HEAVY penalty for lying
+                
+        return penalty
+
     def calculate_seniority_report(self, reward, steps, resolved, correct_fix) -> dict:
         """
         Converts abstract RL metrics into a 'Judge-Friendly' Real World Report.
         """
-        # Seniority Score (0-100)
-        # Base: Resolved (50pts), Correct Fix (20pts), Efficiency (30pts)
         base_score = 50.0 if resolved else 0.0
         fix_score = 20.0 if correct_fix else 0.0
         efficiency_score = max(0, 30.0 * (1.0 - (steps / 50.0)))
         
         total_score = base_score + fix_score + efficiency_score
-        
-        # Penalize for noise/spam
-        if steps > 20:
-            total_score -= (steps - 20) * 1.5
+        if steps > 20: total_score -= (steps - 20) * 1.5
             
-        final_score = max(5, min(98, total_score)) # Intern (5) to Principal (98)
-        
-        # Revenue Saved ($10k / minute of SLA remaining)
-        # SLA is 30 mins. 
-        revenue_saved = 0
-        if resolved:
-            minutes_saved = max(0, 30 - (steps * 2)) # Assume 2min per step
-            revenue_saved = minutes_saved * 10000
-        else:
-            revenue_saved = -500000 # Loss
+        final_score = max(5, min(98, total_score)) 
+        revenue_saved = (30 - (steps * 2)) * 10000 if resolved else -500000
             
         ranking = "Intern"
         if final_score > 85: ranking = "Principal SRE"
