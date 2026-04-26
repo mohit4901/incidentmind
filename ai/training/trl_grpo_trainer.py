@@ -16,9 +16,8 @@ try:
     USE_UNSLOTH = True
     PatchGRPO() 
 except ImportError:
-    USE_UNSLOTH = False
-    from peft import LoraConfig
-    from transformers import BitsAndBytesConfig, AutoModelForCausalLM, AutoTokenizer
+    from peft import LoraConfig, get_peft_model
+    from transformers import BitsAndBytesConfig, AutoModelForCausalLM, AutoTokenizer, TrainerCallback
     from trl import GRPOConfig, GRPOTrainer
 
 # Ensure AI package is discoverable
