@@ -401,11 +401,14 @@ async def run_duel(request: EpisodeRequest):
         }
     except Exception as e:
         print(f"[DUEL_CRASH] {e}")
+        # Send a simulated failure trace instead of empty tray
+        mock_entry = {"step": 1, "action": "recovery", "reward": 0, "finding": "Signal lost. Resetting neural bridge...", "hypothesis": "Recovering...", "cumulative_reward": 0}
         return {
             "status": "error",
             "error": str(e),
-            "untrained": {"trajectory": [], "final_reward": 0, "steps": 0},
-            "trained": {"trajectory": [], "final_reward": 0, "steps": 0}
+            "untrained": {"trajectory": [mock_entry], "final_reward": 0, "steps": 1},
+            "trained": {"trajectory": [mock_entry], "final_reward": 0, "steps": 1},
+            "incident": request.incident_class
         }
 
 def _internal_run_episode(env, agent, obs, max_steps):

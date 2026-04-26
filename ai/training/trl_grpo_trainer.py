@@ -102,9 +102,9 @@ def main():
 
     config = GRPOConfig(
         output_dir="./incidentmind_policy",
-        num_generations=2, 
-        max_completion_length=128,
-        per_device_train_batch_size=1,
+        num_generations=2,              # Minimum group for relative reward
+        per_device_train_batch_size=2,  # Must be >= num_generations
+        max_completion_length=64,       # Save RAM/Speed
         learning_rate=1e-5,
         logging_steps=1,
         max_steps=args.max_steps,
