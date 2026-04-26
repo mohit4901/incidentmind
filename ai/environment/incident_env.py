@@ -155,80 +155,42 @@ class IncidentMindEnv:
         }
 
     def query_logs(self, service: str, time_range: str = "last_15m", filter_text: str = "") -> dict:
-        """
-        Query logs for a specific service.
-        Args:
-            service: service name (e.g., "api-gateway", "postgres", "redis")
-            time_range: "last_5m", "last_15m", "last_1h"
-            filter_text: filter string to search in logs
-        """
         self._state.time_elapsed += 1
-        self._state.action_history.append(f"query_logs(service={service}, filter={filter_text})")
+        self._state.action_history.append(f"query_logs({service})")
+        logs = self.log_gen.generate(service, num_lines=10)
         
-        logs = self.log_gen.query(
-            service=service,
-            incident_class=self._state._incident_class,
-            filter_text=filter_text
-        )
-        
-        reward = self.reward_engine.score_query_logs(
-            service=service,
-            filter_text=filter_text,
-            true_root_cause=self._state._true_root_cause,
-            true_affected_service=self._state._true_affected_service,
-            action_history=self._state.action_history
+        # New Modular Rubric Call
+        reward = self.reward_engine.calculate_reward(
+            self._state.__dict__, "query_logs", service=service, filter_text=filter_text
         )
         
         self._apply_reward(reward, f"query_logs → {service}")
         return {"logs": logs, "reward_delta": reward}
 
     def fetch_metric(self, metric_name: str, window: str = "15m") -> dict:
-        """
-        Fetch a Prometheus-style metric time series.
-        Args:
-            metric_name: one of available_metrics in state
-            window: "5m", "15m", "1h", "6h"
-        """
         self._state.time_elapsed += 1
-        self._state.action_history.append(f"fetch_metric({metric_name}, {window})")
+        self._state.action_history.append(f"fetch_metric({metric_name})")
+        metric_data = self.metric_gen.fetch(metric_name, self._state._incident_class, window)
         
-        if metric_name not in self._state.available_metrics:
-            reward = -0.1
-            self._apply_reward(reward, "fetch_metric → metric not available")
-            return {"error": "metric not found", "reward_delta": reward}
-        
-        metric_data = self.metric_gen.fetch(
-            metric_name=metric_name,
-            incident_class=self._state._incident_class,
-            window=window
-        )
-        
-        reward = self.reward_engine.score_fetch_metric(
-            metric_name=metric_name,
-            true_root_cause=self._state._true_root_cause,
-            action_history=self._state.action_history
+        # New Modular Rubric Call
+        reward = self.reward_engine.calculate_reward(
+            self._state.__dict__, "fetch_metric", metric_name=metric_name
         )
         
         self._apply_reward(reward, f"fetch_metric → {metric_name}")
         return {"metric": metric_data, "reward_delta": reward}
 
     def run_kubectl(self, command: str) -> dict:
-        """
-        Run a kubectl command. Only safe read commands allowed.
-        Args:
-            command: e.g. "describe pod api-gateway-xxx", "get pods -n production", "logs api-gateway --tail=50"
-        """
         self._state.time_elapsed += 1
-        self._state.action_history.append(f"run_kubectl({command})")
-        
+        self._state.action_history.append(f"run_kubectl({command[:20]})")
         result = self._simulate_kubectl(command)
-        reward = self.reward_engine.score_kubectl(
-            command=command,
-            true_root_cause=self._state._true_root_cause,
-            result=result
+        
+        # New Modular Rubric Call
+        reward = self.reward_engine.calculate_reward(
+            self._state.__dict__, "run_kubectl", target=command
         )
         
-        self._apply_reward(reward, f"kubectl → {command[:30]}")
+        self._apply_reward(reward, f"kubectl → {command[:10]}")
         return {"output": result, "reward_delta": reward}
 
     def read_runbook(self, section: str) -> dict:
@@ -309,19 +271,6 @@ class IncidentMindEnv:
             "fix_attempts": self._state._fix_attempts
         }
 
-    def page_human(self, message: str) -> dict:
-        """Page a human. Strong penalty if spammed."""
-        self._state.time_elapsed += 1
-        self._state.action_history.append(f"page_human({message[:20]})")
-        
-        reward = self.reward_engine.score_paging(self._state.action_history)
-        self._apply_reward(reward, "page_human")
-        
-        return {
-            "response": "Operator acknowledged. Awaiting authorization.",
-            "reward_delta": reward
-        }
-
     def check_deploy_diff(self, sha: str) -> dict:
         """
         Check what changed in a specific deploy.
@@ -388,34 +337,24 @@ class IncidentMindEnv:
         return {"response": response, "reward_delta": reward, "escalated": True}
 
     def mark_resolved(self, root_cause_analysis: str, fix_applied: str) -> dict:
-        """
-        Mark the incident as resolved. Triggers final reward computation.
-        Args:
-            root_cause_analysis: detailed RCA text
-            fix_applied: description of fix that resolved the incident
-        """
         self._state._resolved = True
         self._state.action_history.append("mark_resolved()")
         
-        report = self.reward_engine.score_resolution(
-            rca_text=root_cause_analysis,
-            fix_description=fix_applied,
-            true_root_cause=self._state._true_root_cause,
-            true_fix=self._state._true_fix_action,
-            correct_fix_applied=self._state._correct_fix_applied,
-            time_elapsed=self._state.time_elapsed,
-            sla_minutes=self.SLA_MINUTES,
-            fix_attempts=self._state._fix_attempts,
-            step_count=self._step_count,
-            hypothesis_log=self._state.hypothesis_log,
-            action_history=self._state.action_history
+        # Final Terminal Rubric Call
+        reward = self.reward_engine.calculate_reward(
+            self._state.__dict__, "mark_resolved", rca=root_cause_analysis, fix=fix_applied
         )
         
-        self._apply_reward(report["abstract_reward"], "RESOLUTION")
+        # Generate Seniority Report for UI
+        report = self.reward_engine.calculate_seniority_report(
+            reward, self._step_count, self._state._resolved, self._state._correct_fix_applied
+        )
+        
+        self._apply_reward(reward, "RESOLUTION")
         
         return {
             "resolved": self._state._correct_fix_applied,
-            "finalReward": report["abstract_reward"],
+            "finalReward": reward,
             "seniority_score": report["seniority_score"],
             "revenue_impact_usd": report["revenue_impact_usd"],
             "ranking": report["ranking"],

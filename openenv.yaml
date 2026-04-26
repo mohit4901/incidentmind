@@ -1,73 +1,42 @@
-name: incidentmind-sre-v1
-version: 1.0.0
-description: >
-  RL training environment for LLM agents to resolve production incidents.
-  Agent must diagnose and fix realistic Kubernetes/cloud incidents using
-  logs, metrics, kubectl, and runbooks — under SLA time pressure.
-  
-author: IncidentMind Team
-license: MIT
-hackathon: OpenEnv India 2026
+version: "1.0.0"
+name: "incidentmind"
+description: "Autonomous SRE agent training environment for infrastructure reliability"
+entry_point: "ai/environment/incident_env:IncidentMindEnv"
+
+metadata:
+  theme: "Cybersecurity & Infrastructure"
+  difficulty: "Advanced"
+  tags: ["sre", "kubernetes", "fault-tolerance", "diagnostics"]
 
 environment:
-  class: IncidentMindEnv
-  module: ai.environment.incident_env
-  
-  episode:
-    max_steps: 50
-    sla_minutes: 30
-    
-  observations:
-    type: dict
-    includes:
-      - alert
-      - logs
-      - available_metrics
-      - pod_status
-      - recent_deploys
-      - action_history
-      - hypothesis_log
-      
-  actions:
-    - query_logs
-    - fetch_metric
-    - run_kubectl
-    - read_runbook
-    - post_hypothesis
-    - execute_fix
-    - check_deploy_diff
-    - query_slack
-    - page_human
-    - mark_resolved
-    
-  reward:
-    dense: true
-    sparse: true
-    range: [-5, 8]
-    rubric: true
-    
-  partial_observability: true
-  stochastic: true
-  
-  incident_classes: 20
-  
-datasets:
-  - name: Google SRE Workbook incident patterns
-    url: https://sre.google/workbook/
-  - name: Public GitHub postmortems
-    url: https://github.com/danluu/post-mortems
-  - name: Prometheus example metrics
-    url: https://prometheus.io/docs/visualization/grafana/
-    
+  max_steps: 50
+  obs_space: "dict"
+  action_space: "discrete/tool_calling"
+
+tools:
+  - name: "query_logs"
+    description: "Search system logs for errors and patterns"
+  - name: "fetch_metric"
+    description: "Get real-time time-series data from infrastructure"
+  - name: "run_kubectl"
+    description: "Inspect cluster state and pod metadata"
+  - name: "execute_fix"
+    description: "Apply remediation (Restart/Scale/Rollback) to a service"
+  - name: "mark_resolved"
+    description: "Final action to close the incident episode"
+
+rubrics:
+  - name: "diagnostic_accuracy"
+    weight: 0.4
+    description: "How correctly the agent identified the root cause"
+  - name: "resolution_completeness"
+    weight: 0.4
+    description: "Successful remediation of the fault"
+  - name: "operational_efficiency"
+    weight: 0.2
+    description: "Adherence to SLA and minimization of unnecessary steps"
+
 training:
-  compatible_frameworks:
-    - trl
-    - unsloth
-  recommended_model: Qwen/Qwen2.5-7B-Instruct
-  colab_notebook: notebooks/training_colab.ipynb
-  
-judging:
-  environment_innovation: 40
-  storytelling: 30
-  training_evidence: 20
-  pipeline_quality: 10
+  framework: "trl-grpo"
+  base_model: "Qwen2.5-1.5B"
+  accelerator: "MPS/CUDA"
