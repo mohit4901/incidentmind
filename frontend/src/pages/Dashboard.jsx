@@ -1,238 +1,156 @@
-import { useState, useEffect } from 'react';
-import { useSocket } from '../hooks/useSocket';
-import { IncidentPanel } from '../components/IncidentPanel';
-import { AgentActionLog } from '../components/AgentActionLog';
-import { RewardChart } from '../components/RewardChart';
-import { EpochProgress } from '../components/EpochProgress';
-import { StatusBadge } from '../components/StatusBadge';
-import { DuelView } from './DuelView';
+import React, { useState, useEffect, useMemo } from 'react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
+import useSocket from '../hooks/useSocket';
 
-const getBaseURL = () => {
-  const { hostname, origin } = window.location;
-  if (import.meta.env.VITE_BACKEND_URL) return import.meta.env.VITE_BACKEND_URL;
-  
-  const HF_URL = 'https://cottoncloud-incidentmind-grpo-training.hf.space';
-  
-  // If running on localhost, we try to hit local first, but fallback to HF 
-  // (In this case, I'll just point to HF as primary if local is barred)
-  if (hostname === 'localhost' || hostname === '127.0.0.1') return HF_URL;
-  return origin;
+const Dashboard = () => {
+    const { results, isRunning, runEpisode, error } = useSocket();
+    const [history, setHistory] = useState([]);
+    const [incidentClass, setIncidentClass] = useState('oom_kill_cascade');
+
+    // Aggregate metrics for graphs
+    useEffect(() => {
+        if (results?.trained?.trajectory) {
+            const newHistory = results.trained.trajectory.map(step => ({
+                name: `Step ${step.step}`,
+                reward: step.reward,
+                cumulative: step.cumulative_reward
+            }));
+            setHistory(newHistory);
+        }
+    }, [results]);
+
+    const stats = useMemo(() => {
+        const trained = results?.trained || {};
+        const untrained = results?.untrained || {};
+        return {
+            betaReward: trained.final_reward || 0,
+            alphaReward: untrained.final_reward || 0,
+            efficiency: trained.steps ? Math.round((1 - trained.steps/20) * 100) : 0,
+            status: isRunning ? 'EVOLVING' : 'STABLE'
+        };
+    }, [results, isRunning]);
+
+    return (
+        <div className="min-h-screen bg-[#F9FAFB] text-[#111827] font-sans p-6 md:p-12">
+            {/* Header */}
+            <header className="max-w-7xl mx-auto mb-12 flex justify-between items-end border-b border-gray-200 pb-8">
+                <div>
+                    <div className="text-xs font-bold tracking-widest text-indigo-600 uppercase mb-2">Neural Ops Center v1.2</div>
+                    <h1 className="text-4xl font-extrabold tracking-tight">IncidentMind Dashboard</h1>
+                </div>
+                <div className="flex gap-4">
+                    <select 
+                        value={incidentClass} 
+                        onChange={(e) => setIncidentClass(e.target.value)}
+                        className="bg-white border border-gray-200 px-4 py-2 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    >
+                        <option value="oom_kill_cascade">OOM Kill Cascade</option>
+                        <option value="db_connection_pool">DB Pool Leak</option>
+                        <option value="bad_deploy_latency">Deployment Latency</option>
+                    </select>
+                    <button 
+                        onClick={() => runEpisode(incidentClass)}
+                        disabled={isRunning}
+                        className={`px-8 py-2 rounded-md font-semibold text-sm transition-all ${
+                            isRunning ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-black text-white hover:bg-gray-800'
+                        }`}
+                    >
+                        {isRunning ? 'EVALUATING...' : 'RUN NEURAL DUEL'}
+                    </button>
+                </div>
+            </header>
+
+            <main className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8">
+                
+                {/* Stats Section */}
+                <div className="lg:col-span-1 space-y-6">
+                    <div className="bg-white border border-gray-100 p-8 rounded-xl">
+                        <div className="text-xs font-semibold text-gray-400 uppercase mb-4">Core Performance (Beta)</div>
+                        <div className="text-5xl font-black text-indigo-600 mb-2">{stats.betaReward.toFixed(2)}</div>
+                        <div className="text-sm text-gray-500">Cumulative Neural Reward</div>
+                    </div>
+
+                    <div className="bg-white border border-gray-100 p-8 rounded-xl grid grid-cols-2 gap-4">
+                        <div>
+                            <div className="text-xs font-semibold text-gray-400 uppercase mb-1">Efficiency</div>
+                            <div className="text-2xl font-bold">{stats.efficiency}%</div>
+                        </div>
+                        <div>
+                            <div className="text-xs font-semibold text-gray-400 uppercase mb-1">Status</div>
+                            <div className={`text-sm font-bold ${isRunning ? 'text-green-500 animate-pulse' : 'text-gray-400'}`}>
+                                {stats.status}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="bg-black text-white p-8 rounded-xl shadow-2xl">
+                        <div className="text-xs font-semibold text-gray-400 uppercase mb-4">Neural Comparison</div>
+                        <div className="flex justify-between items-end mb-4">
+                            <span className="text-sm">Beta (Evolved)</span>
+                            <span className="text-xl font-bold text-green-400">+{((stats.betaReward / (stats.alphaReward || 0.1)) * 100).toFixed(0)}%</span>
+                        </div>
+                        <div className="w-full bg-gray-800 h-2 rounded-full overflow-hidden">
+                            <div className="bg-green-400 h-full transition-all duration-1000" style={{ width: `${Math.min(100, (stats.betaReward/10)*100)}%` }}></div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Graph Section */}
+                <div className="lg:col-span-2 space-y-8">
+                    <div className="bg-white border border-gray-100 p-8 rounded-xl h-[400px]">
+                        <div className="text-xs font-semibold text-gray-400 uppercase mb-6">Reward Trajectory Convergence</div>
+                        <ResponsiveContainer width="100%" height="100%">
+                            <AreaChart data={history}>
+                                <defs>
+                                    <linearGradient id="colorReward" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor="#4F46E5" stopOpacity={0.1}/>
+                                        <stop offset="95%" stopColor="#4F46E5" stopOpacity={0}/>
+                                    </linearGradient>
+                                </defs>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F0F0F0" />
+                                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 10, fill: '#9CA3AF'}} />
+                                <YAxis axisLine={false} tickLine={false} tick={{fontSize: 10, fill: '#9CA3AF'}} />
+                                <Tooltip 
+                                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
+                                />
+                                <Area type="monotone" dataKey="reward" stroke="#4F46E5" strokeWidth={3} fillOpacity={1} fill="url(#colorReward)" />
+                            </AreaChart>
+                        </ResponsiveContainer>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        {/* Trace Log Beta */}
+                        <div className="bg-white border border-gray-100 p-8 rounded-xl h-[300px] overflow-hidden flex flex-col">
+                            <div className="text-xs font-semibold text-gray-400 uppercase mb-4 font-mono">Trace Bridge: Subject Beta</div>
+                            <div className="flex-1 overflow-y-auto space-y-4 pr-2 custom-scrollbar">
+                                {results?.trained?.trajectory?.map((step, idx) => (
+                                    <div key={idx} className="border-l-2 border-indigo-500 pl-4 py-1">
+                                        <div className="text-[10px] font-bold text-indigo-400 uppercase">Step {step.step} • {step.action}</div>
+                                        <div className="text-sm font-medium text-gray-700 leading-snug">{step.hypothesis}</div>
+                                    </div>
+                                ))}
+                                {!results?.trained && <div className="text-sm text-gray-300 italic text-center mt-12">Waiting for neural rollout...</div>}
+                            </div>
+                        </div>
+
+                        {/* Trace Log Alpha */}
+                        <div className="bg-gray-50 border border-gray-100 p-8 rounded-xl h-[300px] overflow-hidden flex flex-col opacity-60">
+                            <div className="text-xs font-semibold text-gray-400 uppercase mb-4 font-mono">Trace Bridge: Subject Alpha</div>
+                            <div className="flex-1 overflow-y-auto space-y-4 pr-2 custom-scrollbar">
+                                {results?.untrained?.trajectory?.map((step, idx) => (
+                                    <div key={idx} className="border-l-2 border-gray-300 pl-4 py-1">
+                                        <div className="text-[10px] font-bold text-gray-400 uppercase">Step {step.step} • {step.action}</div>
+                                        <div className="text-sm text-gray-400 italic">{step.finding}</div>
+                                    </div>
+                                ))}
+                                {!results?.untrained && <div className="text-sm text-gray-300 italic text-center mt-12">Baseline idle.</div>}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    );
 };
 
-const API_URL = getBaseURL();
-const WS_URL = API_URL.replace(/^http/, 'ws');
-
-export default function Dashboard() {
-  const { connected, agentSteps, isRunning, episodeResult, error, pendingApproval, runEpisode, resetEpisode, approveAction, denyAction } = useSocket();
-  const [agentType, setAgentType] = useState('trained');
-  const [incidentClass, setIncidentClass] = useState('random');
-  const [trainingStatus, setTrainingStatus] = useState(null);
-  const [rewardHistory, setRewardHistory] = useState([]);
-  const [recentEpisodes, setRecentEpisodes] = useState([]);
-  const [showDuel, setShowDuel] = useState(false);
-
-  useEffect(() => {
-    const poll = setInterval(async () => {
-      try {
-        const [resStatus, resHistory] = await Promise.all([
-          fetch(`${API_URL}/api/training/status`),
-          fetch(`${API_URL}/api/results/recent-episodes`)
-        ]);
-
-        if (resStatus.ok) {
-          const data = await resStatus.json();
-          setTrainingStatus(data);
-          if (data.reward_history?.length > 0) {
-            setRewardHistory(data.reward_history);
-          }
-        }
-
-        if (resHistory.ok) {
-          setRecentEpisodes(await resHistory.json());
-        }
-      } catch (_) {}
-    }, 2000);
-    return () => clearInterval(poll);
-  }, []);
-
-  const handleRunEpisode = () => {
-    runEpisode({ incidentClass, agentType });
-  };
-
-  const handleStartTraining = async (epochs = 50) => {
-    try {
-      await fetch(`${API_URL}/api/training/start`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ numEpochs: epochs }),
-      });
-    } catch (err) {
-      console.error('Training start failed:', err);
-    }
-  };
-
-  const INCIDENT_CLASSES = [
-    'random', 'oom_kill_cascade', 'db_connection_pool', 'bad_deploy_latency',
-    'certificate_expiry', 'disk_saturation',
-  ];
-
-  const [systemHealth, setSystemHealth] = useState(100);
-
-  // Update Health based on reward and steps
-  useEffect(() => {
-    if (isRunning) {
-        setSystemHealth(prev => Math.max(10, prev - 1)); // Visible drain
-    } else if (episodeResult?.resolved) {
-        setSystemHealth(100); // Immediate recovery
-    }
-  }, [isRunning, agentSteps, episodeResult]);
-
-  if (showDuel) return <DuelView onBack={() => setShowDuel(false)} />;
-
-  return (
-    <div className={`h-[calc(100vh-100px)] flex flex-col relative z-10 transition-all duration-700 ${
-       isRunning ? 'bg-accent-red/[0.02] shadow-[inset_0_0_100px_rgba(255,51,85,0.05)]' : 'bg-void'
-    }`}>
-      {/* CRISIS ALERT HEADER (NEW) */}
-      {isRunning && (
-         <div className="absolute top-0 left-0 right-0 py-1 bg-accent-red/20 border-b border-accent-red/40 flex justify-center items-center gap-4 z-50 animate-pulse">
-            <span className="text-[10px] font-black text-accent-red tracking-[0.5em] uppercase">SYSTEM BREACH DETECTED</span>
-            <div className="flex gap-2">
-               {[1,2,3].map(i => <div key={i} className="w-1.5 h-1.5 bg-accent-red rounded-full" />)}
-            </div>
-         </div>
-      )}
-
-      {/* Top Banner with Instructions */}
-      <div className="px-6 py-3 bg-accent-cyan/5 border-b border-accent-cyan/10 flex items-center justify-between">
-         <div className="flex items-center gap-4">
-            <span className="text-[10px] font-bold text-accent-cyan tracking-widest uppercase">Protocol Alpha:</span>
-            <div className="w-[150px] h-2 bg-white/5 rounded-full overflow-hidden border border-white/10">
-               <div 
-                  className={`h-full transition-all duration-1000 ${systemHealth < 40 ? 'bg-accent-red' : 'bg-accent-cyan'}`}
-                  style={{ width: `${systemHealth}%` }}
-               />
-            </div>
-            <span className={`text-[9px] font-bold ${systemHealth < 40 ? 'text-accent-red animate-pulse' : 'text-accent-cyan'}`}>
-               CORE_STABILITY: {systemHealth}%
-            </span>
-         </div>
-         <div className="flex gap-4 text-[9px] text-text-muted font-mono">
-            <span>[MEM: 16.4GB]</span>
-            <span>[LATENCY: 42MS]</span>
-         </div>
-      </div>
-
-      {/* Control Bar */}
-      <div className="px-6 py-4 flex items-center justify-between border-b border-white/[0.04] bg-void">
-        <div className="flex items-center gap-6">
-          <StatusBadge status={connected ? 'connected' : 'disconnected'} />
-          
-          <div className="flex flex-col">
-             <span className="text-[8px] text-text-muted uppercase tracking-widest mb-1">Policy State</span>
-             <div className="flex bg-obsidian-light p-0.5 border border-white/[0.04]">
-            {['untrained', 'trained'].map((mode) => (
-              <button
-                key={mode}
-                onClick={() => setAgentType(mode)}
-                className={`px-6 py-2 text-[10px] font-bold tracking-[0.2em] uppercase transition-all duration-300 relative overflow-hidden ${
-                  agentType === mode
-                    ? mode === 'trained'
-                      ? 'bg-accent-cyan text-void shadow-[0_0_20px_rgba(0,212,255,0.4)] z-10'
-                      : 'bg-accent-red text-void shadow-[0_0_20px_rgba(255,51,85,0.4)] z-10'
-                    : 'text-text-muted hover:text-text-secondary bg-transparent'
-                }`}
-              >
-                {mode === 'trained' ? '✓ Trained' : '✗ Untrained'}
-              </button>
-            ))}
-            </div>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-4">
-          <button
-            onClick={handleRunEpisode}
-            disabled={isRunning || !connected}
-            className="px-6 py-2 border border-accent-cyan/30 text-accent-cyan text-[10px] font-bold tracking-[0.2em] uppercase hover:border-accent-cyan/70 transition-all"
-          >
-            {isRunning ? '⟳ Signal Active...' : '▶ Run Episode'}
-          </button>
-          
-          <button
-            onClick={() => setShowDuel(true)}
-            className="px-6 py-2 bg-accent-violet/20 border border-accent-violet/40 text-[#a78bfa] text-[10px] font-bold tracking-[0.2em] uppercase hover:bg-accent-violet/40 transition-all"
-          >
-            ⚔️ BATTLE_DUEL
-          </button>
-        </div>
-      </div>
-
-      {/* Main Grid */}
-      <div className="flex-1 grid grid-cols-12 gap-0 overflow-hidden">
-        {/* Instructions Sidebar (NEW) */}
-        <div className="col-span-2 border-r border-white/5 bg-obsidian/20 p-6 space-y-8 overflow-y-auto">
-           <div className="space-y-4">
-              <div className="section-label">Operation Dossier</div>
-              <p className="text-[10px] text-text-muted leading-relaxed uppercase tracking-wider">
-                1. Select <span className="text-accent-cyan">Trained</span> to use the GRPO-Optimized expert policy.<br/><br/>
-                2. Use <span className="text-accent-violet">Evolution Sync</span> to retrain if resolution rates drop.<br/><br/>
-                3. Authorize fixes in the <span className="text-accent-red">HITL Gate</span> to maintain production safety.
-              </p>
-           </div>
-           
-           <div className="p-4 border border-white/10 bg-white/5 rounded-sm">
-              <div className="text-[9px] font-bold text-accent-cyan mb-2">SYSTEM ANALYTICS</div>
-              <div className="space-y-2">
-                 <div className="flex justify-between items-center text-[8px]">
-                    <span className="text-text-muted">SUCCESS RATE</span>
-                    <span className="text-accent-cyan">78%</span>
-                 </div>
-                 <div className="flex justify-between items-center text-[8px]">
-                    <span className="text-text-muted">AVG TTR</span>
-                    <span className="text-accent-cyan">8.4M</span>
-                 </div>
-              </div>
-           </div>
-        </div>
-
-        {/* Action Log */}
-        <div className="col-span-6 border-r border-white/5 overflow-y-auto p-6 bg-void">
-          <AgentActionLog steps={agentSteps} isRunning={isRunning} />
-        </div>
-
-        {/* Intelligence Side */}
-        <div className="col-span-4 overflow-y-auto p-6 space-y-6 bg-obsidian/30">
-          
-          {/* Thinking HUD (NEW) */}
-          <div className="p-5 border border-accent-cyan/30 bg-accent-cyan/[0.03] shadow-[0_0_15px_rgba(0,212,255,0.05)] relative group">
-             <div className="absolute top-0 right-0 p-2 text-[8px] text-accent-cyan opacity-40 font-mono tracking-tighter">AI_THOUGHT_STREAM</div>
-             <div className="section-label mb-3">Live_Neural_Hypothesis</div>
-             <div className="text-[12px] text-text-primary font-bold leading-relaxed italic border-l-2 border-accent-cyan/50 pl-4 py-1">
-                {agentSteps.length > 0 ? (agentSteps[agentSteps.length-1].hypothesis || "Analyzing system telemetry...") : "Awaiting Operational Context..."}
-             </div>
-          </div>
-
-          {/* Multi-Curve Analytics */}
-          <div className="crystal-card p-5 space-y-4">
-            <div className="flex justify-between items-center">
-               <div className="section-label">Neural Convergence (Multi-Curve)</div>
-               <div className="flex gap-3">
-                  <span className="flex items-center gap-1 text-[8px] text-accent-cyan"><div className="w-1.5 h-1.5 bg-accent-cyan rounded-full"/> REWARD</span>
-                  <span className="flex items-center gap-1 text-[8px] text-[#a78bfa]"><div className="w-1.5 h-1.5 bg-[#a78bfa] rounded-full"/> EFFICIENCY</span>
-               </div>
-            </div>
-            <RewardChart data={rewardHistory} height={180} />
-          </div>
-
-          <div className="h-[280px]">
-             <IncidentPanel 
-                alert={agentSteps.length > 0 ? (agentSteps[0].observation_summary?.current_alert || null) : null}
-                podStatus={agentSteps.length > 0 ? (agentSteps[agentSteps.length-1].observation_summary?.k8s_pods || null) : null}
-             />
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
+export default Dashboard;
