@@ -246,7 +246,7 @@ async def websocket_run_episode(websocket: WebSocket):
         pass
 
 
-@app.post("/start-training")
+@app.post("/api/training/start")
 async def start_training(request: TrainingRequest, background_tasks: BackgroundTasks):
     """Start RL training in background."""
     if training_state["running"]:
@@ -264,7 +264,7 @@ async def start_training(request: TrainingRequest, background_tasks: BackgroundT
     return {"status": "training_started", "epochs": request.num_epochs}
 
 
-@app.get("/training-status")
+@app.get("/api/training/status")
 def training_status():
     return {
         "running": training_state["running"],
@@ -279,7 +279,7 @@ def training_status():
     }
 
 
-@app.get("/results")
+@app.get("/api/results")
 def get_results():
     """Get training results including before/after comparison."""
     if not training_state["reward_history"]:

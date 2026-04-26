@@ -6,7 +6,7 @@ import { AgentActionLog } from '../components/AgentActionLog';
 const getBaseURL = () => {
   if (import.meta.env.VITE_BACKEND_URL) return import.meta.env.VITE_BACKEND_URL;
   if (window.location.hostname.endsWith('.hf.space')) return window.location.origin;
-  return 'http://localhost:3000';
+  return 'http://localhost:7860';
 };
 
 const API_URL = getBaseURL();
