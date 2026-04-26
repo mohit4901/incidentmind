@@ -374,27 +374,24 @@ def _save_reward_curve(rewards: list):
     except Exception as e:
         print(f"Could not save plot: {e}")
 
-import asyncio
-
 @app.post("/api/run-duel")
 async def run_duel(request: EpisodeRequest):
     try:
-        # Reduced steps for duel to prevent proxy timeouts
-        duel_steps = min(request.max_steps, 20)
-        print(f"[DUEL_PARALLEL] Starting for Incident: {request.incident_class} ({duel_steps} steps)")
+        # Crucial for stability on HF: Keep duel steps short (10 is enough for demo)
+        duel_steps = 10
+        print(f"[DUEL_RELIABLE] Running Sequential Duel for Incident: {request.incident_class} ({duel_steps} steps)")
         
-        # Helper to run agent in a thread (since it's blocking I/O)
-        def run_agent_rollout(m_type):
-            env = IncidentMindEnv()
-            agent = SREAgent(model_type=m_type)
-            obs = env.reset(forced_class=request.incident_class)
-            return _internal_run_episode(env, agent, obs, duel_steps)
-
-        # Run BOTH agents concurrently! 🚀
-        untrained_task = asyncio.to_thread(run_agent_rollout, "random")
-        trained_task = asyncio.to_thread(run_agent_rollout, "trained")
+        # 1. Run Untrained
+        untrained_env = IncidentMindEnv()
+        untrained_agent = SREAgent(model_type="random")
+        untrained_obs = untrained_env.reset(forced_class=request.incident_class)
+        untrained_result = _internal_run_episode(untrained_env, untrained_agent, untrained_obs, duel_steps)
         
-        untrained_result, trained_result = await asyncio.gather(untrained_task, trained_task)
+        # 2. Run Trained
+        trained_env = IncidentMindEnv()
+        trained_agent = SREAgent(model_type="trained")
+        trained_obs = trained_env.reset(forced_class=request.incident_class)
+        trained_result = _internal_run_episode(trained_env, trained_agent, trained_obs, duel_steps)
         
         return {
             "untrained": untrained_result,
@@ -407,8 +404,8 @@ async def run_duel(request: EpisodeRequest):
         return {
             "status": "error",
             "error": str(e),
-            "untrained": {"trajectory": [], "final_reward": 0},
-            "trained": {"trajectory": [], "final_reward": 0}
+            "untrained": {"trajectory": [], "final_reward": 0, "steps": 0},
+            "trained": {"trajectory": [], "final_reward": 0, "steps": 0}
         }
 
 def _internal_run_episode(env, agent, obs, max_steps):
