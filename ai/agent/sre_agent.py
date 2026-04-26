@@ -46,7 +46,7 @@ class SREAgent:
         if not self.client:
             return "query_logs", {"service": "api-gateway", "filter_text": "error"}, "Neural signal offline. Please set GROQ_API_KEY in HF Secrets."
 
-        prompt = f"System State: {json.dumps(obs)}\nTask: Resolve the incident. Analyze deeply inside <thought>."
+        prompt = f"System State: {json.dumps(obs)}\nTask: Resolve the incident. Analyze concisely inside <thought>."
         
         try:
             response = self.client.chat.completions.create(
@@ -55,7 +55,8 @@ class SREAgent:
                     {"role": "system", "content": SYSTEM_PROMPT},
                     {"role": "user", "content": prompt}
                 ],
-                temperature=0.7 # Higher intelligence and creativity
+                temperature=0.7,
+                max_tokens=250 # Snap feedback
             )
             raw_content = response.choices[0].message.content
             
