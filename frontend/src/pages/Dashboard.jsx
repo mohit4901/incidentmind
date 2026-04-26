@@ -11,7 +11,7 @@ const getBaseURL = () => {
   const { hostname, origin } = window.location;
   if (import.meta.env.VITE_BACKEND_URL) return import.meta.env.VITE_BACKEND_URL;
   
-  const HF_URL = 'https://CottonCloud-incidentmind-grpo-training.hf.space';
+  const HF_URL = 'https://cottoncloud-incidentmind-grpo-training.hf.space';
   
   // If running on localhost, we try to hit local first, but fallback to HF 
   // (In this case, I'll just point to HF as primary if local is barred)

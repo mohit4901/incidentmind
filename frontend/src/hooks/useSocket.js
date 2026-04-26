@@ -3,7 +3,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 const getBaseURL = () => {
   const { hostname, origin } = window.location;
   if (import.meta.env.VITE_BACKEND_URL) return import.meta.env.VITE_BACKEND_URL;
-  const HF_URL = 'https://CottonCloud-incidentmind-grpo-training.hf.space';
+  const HF_URL = 'https://cottoncloud-incidentmind-grpo-training.hf.space';
   if (hostname === 'localhost' || hostname === '127.0.0.1') return HF_URL;
   return origin;
 };
