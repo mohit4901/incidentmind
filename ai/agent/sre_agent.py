@@ -10,6 +10,7 @@ RULES:
 1. Always analyze evidence inside <thought></thought> tags.
 2. Output a single JSON tool call as your final act.
 3. Be grounded. If tools show no high latency, do not guess a fix.
+4. PRIORITY: Once the root cause is identified, apply the fix immediately in the next step to prevent SLA decay.
 
 AVAILABLE TOOLS:
 - query_logs(service: str, filter_text: str = ""): Search pod logs.

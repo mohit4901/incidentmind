@@ -32,9 +32,11 @@ def heartbeat():
 
 def reward_incident_resolution(prompts, completions, **kwargs):
     rewards = []
-    for prompt, completion in zip(prompts, completions):
+    for completion in completions:
+        # Extract text if completion is a chat list
+        text = completion[0]["content"] if isinstance(completion, list) else completion
         try:
-            json_match = re.search(r'\{.*"tool".*\}', completion, re.DOTALL)
+            json_match = re.search(r'\{.*"tool".*\}', text, re.DOTALL)
             if json_match:
                 call = json.loads(json_match.group())
                 action, action_kwargs = call.get("tool", "invalid"), call.get("args", {})
@@ -50,12 +52,16 @@ def reward_incident_resolution(prompts, completions, **kwargs):
     return rewards
 
 def reward_format_json(prompts, completions, **kwargs):
-    return [1.0 if re.search(r'\{.*"tool":\s*".*".*\}', c, re.DOTALL) else 0.0 for c in completions]
+    rewards = []
+    for completion in completions:
+        text = completion[0]["content"] if isinstance(completion, list) else completion
+        rewards.append(1.0 if re.search(r'\{.*"tool":\s*".*".*\}', text, re.DOTALL) else 0.0)
+    return rewards
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--model_id", type=str, default="Qwen/Qwen2.5-1.5B-Instruct")
-    parser.add_argument("--max_steps", type=int, default=50)
+    parser.add_argument("--max_steps", type=int, default=30) # Default to 30 for speed
     args = parser.parse_args()
 
     # Device Discovery
@@ -104,7 +110,7 @@ def main():
         output_dir="./incidentmind_policy",
         num_generations=2,              # Minimum group for relative reward
         per_device_train_batch_size=2,  # Must be >= num_generations
-        max_completion_length=64,       # Save RAM/Speed
+        max_completion_length=48,       # Fast generation
         learning_rate=1e-5,
         logging_steps=1,
         max_steps=args.max_steps,
