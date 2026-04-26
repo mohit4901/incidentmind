@@ -3,7 +3,13 @@ import { EpochProgress } from '../components/EpochProgress';
 import { RewardChart } from '../components/RewardChart';
 import { StatusBadge } from '../components/StatusBadge';
 
-const API_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
+const getBaseURL = () => {
+  const { hostname, origin } = window.location;
+  const HF_URL = 'https://CottonCloud-incidentmind-grpo-training.hf.space';
+  if (hostname === 'localhost' || hostname === '127.0.0.1') return HF_URL;
+  return origin;
+};
+const API_URL = getBaseURL();
 
 export default function Training() {
   const [status, setStatus] = useState(null);

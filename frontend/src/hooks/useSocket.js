@@ -98,11 +98,11 @@ export function useSocket() {
   }, []);
 
   const approveAction = useCallback(() => {
-    wsRef.current?.send(JSON.stringify({ type: 'approve' }));
+    wsRef.current?.send("approved");
   }, []);
 
   const denyAction = useCallback(() => {
-    wsRef.current?.send(JSON.stringify({ type: 'deny' }));
+    wsRef.current?.send("denied");
   }, []);
 
   return {
