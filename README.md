@@ -78,7 +78,7 @@ I ran a grueling 15-step neural evolution cycle to see if the model could actual
 ### 🖼️ Visual Convergence (Baseline vs. Trained)
 Reviewers, take a look at the gap between the untrained model and the final policy. The convergence at Step 1 is the moment the agent "figured out" the JSON tool-calling format.
 
-![Phase1_Comparison_Curve](https://raw.githubusercontent.com/mohitmudgil/incidentmind/main/results/Phase1_Comparison_Curve.png)
+![Phase1_Comparison_Curve](https://huggingface.co/spaces/CottonCloud/incidentmind-grpo-training/resolve/main/results/Phase1_Comparison_Curve.png)
 *Figure 1: Mean collective reward across 60 rollouts. The trained policy (blue) rapidly separates from the random baseline (red), proving the effectiveness of the GRPO reward shaping.*
 
 ---
