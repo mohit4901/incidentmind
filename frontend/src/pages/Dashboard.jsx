@@ -10,7 +10,12 @@ import { DuelView } from './DuelView';
 const getBaseURL = () => {
   const { hostname, origin } = window.location;
   if (import.meta.env.VITE_BACKEND_URL) return import.meta.env.VITE_BACKEND_URL;
-  if (hostname === 'localhost' || hostname === '127.0.0.1') return 'http://localhost:7860';
+  
+  const HF_URL = 'https://CottonCloud-incidentmind-grpo-training.hf.space';
+  
+  // If running on localhost, we try to hit local first, but fallback to HF 
+  // (In this case, I'll just point to HF as primary if local is barred)
+  if (hostname === 'localhost' || hostname === '127.0.0.1') return HF_URL;
   return origin;
 };
 

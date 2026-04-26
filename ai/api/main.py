@@ -426,3 +426,7 @@ def _internal_run_episode(env, agent, obs, max_steps):
         "final_reward": round(sum(t["reward"] for t in trajectory), 2),
         "steps": step
     }
+
+@app.get("/api/results/recent-episodes")
+def recent_episodes():
+    return training_state.get("logs", [])[-10:]

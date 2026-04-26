@@ -6,7 +6,8 @@ import { AgentActionLog } from '../components/AgentActionLog';
 const getBaseURL = () => {
   const { hostname, origin } = window.location;
   if (import.meta.env.VITE_BACKEND_URL) return import.meta.env.VITE_BACKEND_URL;
-  if (hostname === 'localhost' || hostname === '127.0.0.1') return 'http://localhost:7860';
+  const HF_URL = 'https://CottonCloud-incidentmind-grpo-training.hf.space';
+  if (hostname === 'localhost' || hostname === '127.0.0.1') return HF_URL;
   return origin;
 };
 
