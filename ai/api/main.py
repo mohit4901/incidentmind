@@ -379,51 +379,61 @@ async def run_duel(request: EpisodeRequest):
     """
     Run a side-by-side comparison between Trained and Untrained agents on the SAME incident.
     """
-    print(f"[DUEL_START] Initiating Duel for Incident: {request.incident_class}")
-    
-    # 1. Run Untrained
-    untrained_env = IncidentMindEnv()
-    untrained_agent = SREAgent(model_type="untrained")
-    # Reset both with the SAME SEED logic (internal to reset() for now)
-    seed_obs = untrained_env.reset(forced_class=request.incident_class)
-    untrained_result = _internal_run_episode(untrained_env, untrained_agent, seed_obs, request.max_steps)
-    
-    # 2. Run Trained (Expert)
-    trained_env = IncidentMindEnv()
-    trained_agent = SREAgent(model_type="trained")
-    trained_obs = trained_env.reset(forced_class=request.incident_class) 
-    trained_result = _internal_run_episode(trained_env, trained_agent, trained_obs, request.max_steps)
-    
-    print(f"[DUEL_END] Trained: {trained_result['final_reward']} | Untrained: {untrained_result['final_reward']}")
-    
-    return {
-        "untrained": untrained_result,
-        "trained": trained_result,
-        "incident": request.incident_class
-    }
+    try:
+        print(f"[DUEL_START] Initiating Duel for Incident: {request.incident_class}")
+        
+        # 1. Run Untrained
+        untrained_env = IncidentMindEnv()
+        untrained_agent = SREAgent(model_type="random") # Default
+        seed_obs = untrained_env.reset(forced_class=request.incident_class)
+        untrained_result = _internal_run_episode(untrained_env, untrained_agent, seed_obs, request.max_steps)
+        
+        # 2. Run Trained (Expert)
+        trained_env = IncidentMindEnv()
+        trained_agent = SREAgent(model_type="trained")
+        trained_obs = trained_env.reset(forced_class=request.incident_class) 
+        trained_result = _internal_run_episode(trained_env, trained_agent, trained_obs, request.max_steps)
+        
+        return {
+            "untrained": untrained_result,
+            "trained": trained_result,
+            "incident": request.incident_class
+        }
+    except Exception as e:
+        print(f"[DUEL_CRASH] {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 def _internal_run_episode(env, agent, obs, max_steps):
     trajectory = []
     done = False
     step = 0
+    total_reward = 0
+    
     while not done and step < max_steps:
-        action, kwargs = agent.act(obs)
-        new_obs, reward, done, info = env.step(action, **kwargs)
-        trajectory.append({
-            "step": step + 1,
-            "action": action,
-            "reward": reward,
-            "finding": info.get("finding", "Exploring neural traces..."),
-            "hypothesis": new_obs.get("hypothesis_log", [])[-1] if new_obs.get("hypothesis_log") else "Analyzing...",
-            "cumulative_reward": round(sum(t["reward"] for t in trajectory) + reward, 2)
-        })
-        obs = new_obs
-        step += 1
+        try:
+            # Use act_with_reasoning to get all 3 values
+            action, kwargs, reasoning = agent.act_with_reasoning(obs)
+            new_obs, reward, done, info = env.step(action, **kwargs)
+            
+            total_reward += reward
+            trajectory.append({
+                "step": step + 1,
+                "action": action,
+                "reward": reward,
+                "finding": info.get("finding", "Exploring neural traces..."),
+                "hypothesis": reasoning,
+                "cumulative_reward": round(total_reward, 2)
+            })
+            obs = new_obs
+            step += 1
+        except Exception as e:
+            print(f"[EPISODE_STEP_ERROR] {e}")
+            break
     
     return {
         "trajectory": trajectory,
         "resolved": done and env._state._resolved,
-        "final_reward": round(sum(t["reward"] for t in trajectory), 2),
+        "final_reward": round(total_reward, 2),
         "steps": step
     }
 
