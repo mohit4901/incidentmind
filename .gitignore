@@ -52,3 +52,9 @@ incidentmind_final_policy/
 # OS
 .DS_Store
 Thumbs.db
+
+# Local Weights
+incidentmind_policy/
+/results/
+/ai/training/results/
+*.png
