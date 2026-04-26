@@ -10,12 +10,12 @@ const getBaseURL = () => {
 
 const WS_URL = getBaseURL().replace(/^http/, 'ws') + '/ws/run-episode';
 
-export function useSocket() {
+export default function useSocket() {
   const wsRef = useRef(null);
   const [connected, setConnected] = useState(false);
   const [agentSteps, setAgentSteps] = useState([]);
   const [isRunning, setIsRunning] = useState(false);
-  const [episodeResult, setEpisodeResult] = useState(null);
+  const [results, setResults] = useState(null);
   const [error, setError] = useState(null);
   const [pendingApproval, setPendingApproval] = useState(null);
 
@@ -43,7 +43,7 @@ export function useSocket() {
           setPendingApproval(data.data);
           break;
         case 'episode_complete':
-          setEpisodeResult(data.result);
+          setResults(data.result);
           setIsRunning(false);
           setPendingApproval(null);
           break;
@@ -72,26 +72,26 @@ export function useSocket() {
     return () => wsRef.current?.close();
   }, [connect]);
 
-  const runEpisode = useCallback(({ incidentClass = 'random', agentType = 'trained' } = {}) => {
+  const runEpisode = useCallback((incidentClass) => {
     if (wsRef.current?.readyState !== WebSocket.OPEN) {
         setError("Not connected to AI Bridge");
         return;
     }
     setAgentSteps([]);
-    setEpisodeResult(null);
+    setResults(null);
     setError(null);
     setIsRunning(true);
     
     wsRef.current.send(JSON.stringify({
-      incident_class: incidentClass,
-      agent_type: agentType,
+      incident_class: incidentClass || 'oom_kill_cascade',
+      agent_type: 'duel',
       max_steps: 50
     }));
   }, []);
 
   const resetEpisode = useCallback(() => {
     setAgentSteps([]);
-    setEpisodeResult(null);
+    setResults(null);
     setError(null);
     setIsRunning(false);
     setPendingApproval(null);
@@ -109,7 +109,7 @@ export function useSocket() {
     connected,
     agentSteps,
     isRunning,
-    episodeResult,
+    results,
     error,
     pendingApproval,
     runEpisode,
