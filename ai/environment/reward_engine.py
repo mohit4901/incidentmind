@@ -252,7 +252,7 @@ class RewardEngine:
 
     def calculate_seniority_report(self, reward, steps, resolved, correct_fix) -> dict:
         """
-        Converts abstract RL metrics into a 'Judge-Friendly' Real World Report.
+        Judge-Friendly Business View ($ Savings)
         """
         base_score = 50.0 if resolved else 0.0
         fix_score = 20.0 if correct_fix else 0.0
@@ -273,6 +273,29 @@ class RewardEngine:
             "seniority_score": round(final_score, 1),
             "revenue_impact_usd": int(revenue_saved),
             "ranking": ranking
+        }
+
+    def calculate_academic_metrics(self, history: list) -> dict:
+        """
+        Technical AI View (Precision/F1)
+        """
+        if not history:
+            return {"surgical_precision": 0, "diagnostic_recall": 0, "f1_score": 0, "overall_accuracy": 0}
+            
+        true_positives = sum(1 for e in history if e.get('resolved') and e.get('correct_fix'))
+        false_positives = sum(1 for e in history if not e.get('resolved') and e.get('fix_attempts', 0) > 0)
+        false_negatives = sum(1 for e in history if not e.get('resolved') and e.get('fix_attempts', 0) == 0)
+        
+        precision = true_positives / (true_positives + false_positives) if (true_positives + false_positives) > 0 else 0
+        recall = true_positives / (true_positives + false_negatives) if (true_positives + false_negatives) > 0 else 0
+        f1 = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0
+        accuracy = sum(1 for e in history if e.get('resolved')) / len(history)
+        
+        return {
+            "surgical_precision": round(precision * 100, 1),
+            "diagnostic_recall": round(recall * 100, 1),
+            "f1_score": round(f1, 2),
+            "overall_accuracy": round(accuracy * 100, 1)
         }
 
     def score_resolution(self, rca_text, fix_description, true_root_cause, true_fix,

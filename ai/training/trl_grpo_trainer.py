@@ -66,16 +66,22 @@ def reward_format_json(prompts, completions, **kwargs):
 # Main Evolution Loop
 # ---------------------------------------------------------
 def main():
-    # Start heartbeat to prevent timeout
-    threading.Thread(target=heartbeat, daemon=True).start()
-
     parser = argparse.ArgumentParser()
     parser.add_argument("--model_id", type=str, default="unsloth/Qwen2.5-7B-Instruct-bnb-4bit")
     parser.add_argument("--max_steps", type=int, default=100)
     args = parser.parse_args()
 
+    # Device Discovery: CUDA (NVIDIA), MPS (Apple Silicon), or CPU
+    if torch.cuda.is_available():
+        device = "cuda"
+    elif torch.backends.mps.is_available():
+        device = "mps"
+    else:
+        device = "cpu"
+    print(f"[{datetime.now()}] Compute Engine: {device.upper()}")
+
     if USE_UNSLOTH:
-        # UNSLOTH PEFT Loading (2x Faster, 40% less VRAM)
+        # UNSLOTH PEFT Loading (Works primarily on NVIDIA)
         model, tokenizer = FastLanguageModel.from_pretrained(
             model_name = args.model_id,
             max_seq_length = 512,
@@ -92,18 +98,21 @@ def main():
             random_state = 3407,
         )
     else:
-        # Standard LoRA Fallback
-        bnb_config = BitsAndBytesConfig(
-            load_in_4bit=True,
-            bnb_4bit_compute_dtype=torch.bfloat16,
-            bnb_4bit_quant_type="nf4",
-            bnb_4bit_use_double_quant=True,
-        )
+        # Standard LoRA / MPS Fallback
+        bnb_config = None
+        if device == "cuda":
+            bnb_config = BitsAndBytesConfig(
+                load_in_4bit=True,
+                bnb_4bit_compute_dtype=torch.bfloat16,
+                bnb_4bit_quant_type="nf4",
+                bnb_4bit_use_double_quant=True,
+            )
+        
         model = AutoModelForCausalLM.from_pretrained(
             args.model_id,
             quantization_config=bnb_config,
-            torch_dtype=torch.bfloat16,
-            device_map="auto"
+            torch_dtype=torch.float16 if device == "mps" else torch.bfloat16,
+            device_map={"": device} if device != "cpu" else "auto"
         )
         
         from transformers import AutoTokenizer
