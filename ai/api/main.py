@@ -58,61 +58,64 @@ from fastapi.responses import HTMLResponse
 def root():
     return """
     <!DOCTYPE html>
-    <html lang="en">
+    <html lang='en'>
     <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>IncidentMind | Autonomous SRE Research</title>
+        <meta charset='UTF-8'>
+        <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+        <title>IncidentMind | Neural SRE Lab</title>
+        <link href='https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap' rel='stylesheet'>
         <style>
-            @import url('https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@300;400;600&display=swap');
-            body { background-color: #fcfcfc; color: #111; font-family: 'Crimson Pro', serif; line-height: 1.7; max-width: 750px; margin: 0 auto; padding: 80px 25px; letter-spacing: -0.01em; }
-            .header { border-bottom: 1px solid #ddd; margin-bottom: 50px; padding-bottom: 20px; }
-            h1 { font-weight: 400; font-size: 2.6rem; margin: 0; color: #000; letter-spacing: -0.03em; }
-            .subtitle { font-style: italic; color: #555; font-size: 1.1rem; }
-            .abstract { font-size: 1.25rem; font-weight: 300; color: #333; margin-bottom: 40px; border-left: 3px solid #000; padding-left: 25px; }
-            .section-title { text-transform: uppercase; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.15em; color: #888; margin-top: 45px; margin-bottom: 15px; }
-            p { margin-bottom: 25px; text-align: justify; }
-            .status-tag { display: inline-block; background-color: #000; color: #fff; padding: 4px 10px; font-size: 0.75rem; font-family: 'Courier New', Courier, monospace; border-radius: 1px; margin-right: 10px; }
-            .footer { margin-top: 80px; font-size: 0.85rem; color: #888; border-top: 1px solid #ddd; padding-top: 20px; }
-            a { color: #000; text-decoration: underline; text-underline-offset: 4px; }
-            .nav { margin-bottom: 30px; font-size: 0.85rem; font-weight: 600; color: #999; }
+            :root { --accent: #1D9E75; --bg: #fcfcfc; --text: #111; }
+            body { font-family: 'Inter', sans-serif; line-height: 1.7; max-width: 900px; margin: 0 auto; padding: 60px 25px; background: var(--bg); color: var(--text); }
+            .header { border-bottom: 2px solid #111; padding-bottom: 20px; margin-bottom: 40px; }
+            h1 { font-weight: 800; font-size: 2.8rem; margin: 0; letter-spacing: -0.04em; }
+            .badge { background: #111; color: #fff; padding: 4px 10px; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; border-radius: 4px; margin-right: 8px; }
+            .metric-card { border: 1px solid #ddd; padding: 25px; border-radius: 8px; margin: 20px 0; background: #fff; }
+            .metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; }
+            .metric-val { font-size: 1.5rem; font-weight: 800; color: var(--accent); }
+            .plot-img { width: 100%; border-radius: 8px; border: 1px solid #eee; margin-top: 20px; }
+            .footer { margin-top: 80px; border-top: 1px solid #ddd; padding-top: 20px; font-size: 0.8rem; color: #666; }
+            pre { background: #f4f4f4; padding: 15px; border-radius: 4px; font-size: 0.85rem; overflow-x: auto; }
         </style>
     </head>
     <body>
-        <div class="nav">RESEARCH_PAPER // OPENENV_HACKATHON // INCIDENTMIND</div>
-        <div class="header">
+        <div class='header'>
+            <span class='badge'>Research Node Active</span>
+            <span class='badge'>GRPO v1.1</span>
             <h1>IncidentMind</h1>
-            <div class="subtitle">Autonomous Site Reliability Engineering through Group Relative Policy Optimization</div>
+            <p style='font-size: 1.2rem; color: #555;'>Autonomous SRE Diagnostics through Neural Evolution</p>
         </div>
+
+        <section>
+            <p><strong>Mission:</strong> Closing the "Hallucination Gap" in infrastructure operations by grounding LLMs in real-world telemetry through Group Relative Policy Optimization.</p>
+        </section>
+
+        <h2>📊 Neural Performance Audit (15-Step Run)</h2>
+        <div class='metric-grid'>
+            <div class='metric-card'>
+                <div class='metric-label'>Precision</div>
+                <div class='metric-val'>0.60 <span style='font-size: 0.7rem; color: #666;'>(12x Gain)</span></div>
+            </div>
+            <div class='metric-card'>
+                <div class='metric-label'>F1-Score</div>
+                <div class='metric-val'>0.53 <span style='font-size: 0.7rem; color: #666;'>(17x Gain)</span></div>
+            </div>
+            <div class='metric-card'>
+                <div class='metric-label'>SLA Resolution</div>
+                <div class='metric-val'>80% <span style='font-size: 0.7rem; color: #666;'>(8x Success)</span></div>
+            </div>
+        </div>
+
+        <h2>🖼️ Phase 1 Convergence Story</h2>
+        <p>The agent rapidly transitions from random guessing to surgical log interrogation and metric verification.</p>
+        <img src='https://huggingface.co/spaces/CottonCloud/incidentmind-grpo-training/resolve/main/results/Phase1_Comparison_Curve.png' class='plot-img' alt='Neural Convergence Chart'>
         
-        <div class="abstract">
-            IncidentMind is an advanced reinforcement learning framework designed to foster the evolution of large language models into expert-level site reliability engineers. By integrating high-fidelity infrastructure telemetry with sparse and dense reward functions, we enable agents to resolve complex systems failures with scientific precision.
-        </div>
-
-        <div class="section-title">Engine State</div>
-        <div style="margin-top: 15px;">
-            <span class="status-tag">CORE_ACTIVE</span>
-            <span class="status-tag">RL_POLICY: GRPO-ENABLED</span>
-            <span class="status-tag">BUILD: 1.1.0</span>
-        </div>
-
-        <div class="section-title">Methodology</div>
-        <p>
-            Unlike traditional rule-based diagnostic systems, IncidentMind relies on dynamic policy evolution. Our environment simulates twenty distinct incident archetypes—ranging from resource saturation cascade to complex network partitions—requiring the agent to synthesize observations from logs, metrics, and pod status in real-time. This methodology significantly reduces hallucinations by grounding every diagnostic hypothesis in quantitative telemetry.
-        </p>
-
-        <div class="section-title">Evaluation Metrics</div>
-        <p>
-            The framework employs a multidimensional scoring system. Agents are evaluated not only on resolution speed but on the technical rigor of their diagnostics (Precision, Recall, F1) and their overall seniority alignment. This ensures that the evolved policy reflects the behavioral patterns of a senior system architect rather than a heuristic agent.
-        </p>
-
-        <div class="section-title">Resources</div>
-        <p>
-            Interact with the system through the <a href="https://cottoncloud-incidentmind-grpo-training.hf.space">Main Neural Dashboard</a>. For technical integration details, refer to the <a href="/docs">API Schema</a>.
-        </p>
-
-        <div class="footer">
-            Copyright &copy; 2026 The IncidentMind Project. Distributed under the OpenEnv Standard. No unauthorized reproduction of neural weights.
+        <h2>🚀 Tech Stack</h2>
+        <p>Qwen-2.5-1.5B (GRPO), OpenEnv v1.1.0, Apple Silicon MPS Optimized.</p>
+        
+        <div class='footer'>
+            &copy; 2026 Mohit // IncidentMind Research // <br>
+            <a href='https://github.com/mohit4901/incidentmind'>Project Repository</a> | Built for OpenEnv 2026
         </div>
     </body>
     </html>
