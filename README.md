@@ -7,7 +7,7 @@
 
 ---
 
-## 🏛️ 1. System Architecture: The Neural SRE Loop
+##  1. System Architecture: The Neural SRE Loop
 
 IncidentMind is structured as a tight observation-action loop between the **Inference Engine** and the **OpenEnv Simulator**.
 
