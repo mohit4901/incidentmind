@@ -43,6 +43,22 @@ class SREAgent:
 
     def act_with_reasoning(self, obs: dict):
         """Intelligence-First inference. Prioritizes Groq 70B."""
+        
+        # 1. HANDLE RANDOM / UNTRAINED MODE (Zero Key Required)
+        if self.model_type == "random":
+            import random
+            actions = ["query_logs", "fetch_metric", "run_kubectl"]
+            action = random.choice(actions)
+            services = ["api-gateway", "auth-service", "payment-db"]
+            reasoning = random.choice([
+                "Exploring random system signals...",
+                "Initiating wide-spectrum log scan without specific hypothesis.",
+                "Stochastically probing infrastructure heath.",
+                "Executing baseline connectivity check."
+            ])
+            return action, {"service": random.choice(services)}, reasoning
+
+        # 2. HANDLE TRAINED / INTELLIGENT MODE
         if not self.client:
             return "query_logs", {"service": "api-gateway", "filter_text": "error"}, "Neural signal offline. Please set GROQ_API_KEY in HF Secrets."
 
@@ -75,11 +91,14 @@ class SREAgent:
             
             json_match = re.search(r'\{.*"tool".*\}', json_str, re.DOTALL)
             if json_match:
-                call = json.loads(json_match.group())
-                return call.get("tool", "invalid"), call.get("args", {}), reasoning
+                try:
+                    call = json.loads(json_match.group())
+                    return call.get("tool", "invalid"), call.get("args", {}), reasoning
+                except:
+                    pass
             
-            return "invalid", {}, reasoning
+            return "query_logs", {"service": "api-gateway"}, reasoning
 
         except Exception as e:
             print(f"[REASONING_ERROR] {e}")
-            return "invalid", {}, f"Inference failed: {e}"
+            return "query_logs", {"service": "api-gateway"}, f"Inference failed: {e}"
