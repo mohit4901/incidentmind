@@ -77,6 +77,9 @@ def run_episode(request: EpisodeRequest):
     agent = SREAgent(model_type=request.agent_type)
     
     obs = env.reset(forced_class=request.incident_class)
+    print(f"\n[NEURAL_EPOCH_START] Incident: {obs.get('alert', {}).get('title')} | Agent: {request.agent_type}")
+    print("-" * 60)
+    
     trajectory = []
     done = False
     step = 0
@@ -85,12 +88,14 @@ def run_episode(request: EpisodeRequest):
         action, kwargs = agent.act(obs)
         new_obs, reward, done, info = env.step(action, **kwargs)
         
+        print(f"STEP {step+1:02d} | ACTION: {action:<15} | REWARD: {reward:>6.2f} | DONE: {done}")
+        
         trajectory.append({
             "step": step + 1,
             "action": action,
             "kwargs": kwargs,
             "reward": reward,
-            "cumulative_reward": sum(t["reward"] for t in trajectory) + reward,
+            "cumulative_reward": round(sum(t["reward"] for t in trajectory) + reward, 2),
             "observation_summary": {
                 "time_elapsed": new_obs.get("time_elapsed_minutes", 0),
                 "action_history_len": len(new_obs.get("action_history", [])),
@@ -104,6 +109,9 @@ def run_episode(request: EpisodeRequest):
     total_reward = sum(t["reward"] for t in trajectory)
     resolved = done and info.get("done_reason") == "resolved"
     
+    print("-" * 60)
+    print(f"[NEURAL_EPOCH_END] Final Reward: {total_reward:.2f} | Steps: {step} | Resolved: {resolved}")
+    
     # Senior SRE Mentor Feedback (Bestest Backend Shit)
     mentor_feedback = _generate_mentor_feedback(trajectory, resolved, info.get("done_reason"))
     
@@ -114,7 +122,11 @@ def run_episode(request: EpisodeRequest):
         "incident_class": obs.get("alert", {}).get("title", "unknown"),
         "resolved": resolved,
         "done_reason": info.get("done_reason", "unknown"),
-        "mentor_feedback": mentor_feedback
+        "mentor_feedback": mentor_feedback,
+        "metrics": {
+            "efficiency": round(10.0 / step if step > 0 else 0, 2),
+            "data_adherence": sum(1 for t in trajectory if t['reward'] > 0) / step if step > 0 else 0
+        }
     }
 
 def _generate_mentor_feedback(trajectory, resolved, reason):
