@@ -286,7 +286,7 @@ class IncidentMindEnv:
         self._state._fix_attempts += 1
         self._state.action_history.append(f"execute_fix({action}, {target})")
         
-        correct = self.reward_engine.is_correct_fix(
+        correct, feedback = self.reward_engine.is_correct_fix(
             action=action,
             target=target,
             true_fix_action=self._state._true_fix_action,
@@ -295,18 +295,31 @@ class IncidentMindEnv:
         
         if correct:
             self._state._correct_fix_applied = True
-            reward = 1.2
-            outcome = "Fix applied successfully. Metrics show improvement."
+            reward = 1.5
+            outcome = feedback
         else:
-            reward = -0.5
-            outcome = f"Fix applied but metrics unchanged. Situation may be worsening."
+            reward = -1.0
+            outcome = feedback
         
         self._apply_reward(reward, f"execute_fix → {action} on {target}")
         return {
             "outcome": outcome,
-            "metrics_trend": "improving" if correct else "unchanged",
+            "metrics_trend": "improving" if correct else "degrading",
             "reward_delta": reward,
             "fix_attempts": self._state._fix_attempts
+        }
+
+    def page_human(self, message: str) -> dict:
+        """Page a human. Strong penalty if spammed."""
+        self._state.time_elapsed += 1
+        self._state.action_history.append(f"page_human({message[:20]})")
+        
+        reward = self.reward_engine.score_paging(self._state.action_history)
+        self._apply_reward(reward, "page_human")
+        
+        return {
+            "response": "Operator acknowledged. Awaiting authorization.",
+            "reward_delta": reward
         }
 
     def check_deploy_diff(self, sha: str) -> dict:
@@ -384,7 +397,7 @@ class IncidentMindEnv:
         self._state._resolved = True
         self._state.action_history.append("mark_resolved()")
         
-        total_reward = self.reward_engine.score_resolution(
+        report = self.reward_engine.score_resolution(
             rca_text=root_cause_analysis,
             fix_description=fix_applied,
             true_root_cause=self._state._true_root_cause,
@@ -398,16 +411,16 @@ class IncidentMindEnv:
             action_history=self._state.action_history
         )
         
-        self._apply_reward(total_reward, "RESOLUTION")
+        self._apply_reward(report["abstract_reward"], "RESOLUTION")
         
         return {
-            "resolved": True,
-            "final_reward": final_reward,
-            "total_episode_reward": self._episode_reward,
-            "time_taken_minutes": self._state.time_elapsed,
-            "sla_met": self._state.time_elapsed <= self._state.sla_minutes,
-            "correct_root_cause": self._state._true_root_cause,
-            "steps_taken": self._step_count,
+            "resolved": self._state._correct_fix_applied,
+            "finalReward": report["abstract_reward"],
+            "seniority_score": report["seniority_score"],
+            "revenue_impact_usd": report["revenue_impact_usd"],
+            "ranking": report["ranking"],
+            "stepsTaken": self._step_count,
+            "doneReason": "resolved" if self._state._correct_fix_applied else "failed_fix"
         }
 
     def step(self, tool_name: str, **kwargs) -> tuple[dict, float, bool, dict]:

@@ -150,20 +150,29 @@ class RewardEngine:
         
         return round(reward, 2)
     
-    def is_correct_fix(self, action, target, true_fix_action, true_affected_service) -> bool:
+    def score_paging(self, action_history) -> float:
+        """PagerDuty Tenet: Don't noise the humans."""
+        paging_count = sum(1 for a in action_history if "page_human" in a)
+        if paging_count <= 1: return -0.2 # Standard cost
+        return -2.0 * (paging_count - 1) # Severe penalty for spamming humans
+
+    def is_correct_fix(self, action, target, true_fix_action, true_affected_service) -> tuple[bool, str]:
         action_match = action.lower() == true_fix_action.lower()
         target_match = (
             target.lower() in true_affected_service.lower() or
             true_affected_service.lower() in target.lower()
         )
-        return action_match and target_match
-    
-    def score_deploy_check(self, sha, incident_class) -> float:
-        # Reward for checking deploy diff when incident is deploy-related
-        deploy_related = ["bad_deploy_latency", "oom_kill_cascade", "db_connection_pool", "disk_saturation"]
-        if incident_class in deploy_related:
-            return 0.3
-        return 0.05
+        
+        if action_match and target_match:
+            return True, "Success: Remediation verified."
+        
+        if not action_match and target_match:
+            return False, f"Failure: {action} is not the correct remediation for {target}. Check runbooks."
+        
+        if action_match and not target_match:
+            return False, f"Failure: {action} applied to wrong service. {target} is healthy."
+            
+        return False, "Failure: Incorrect action and target."
     
     def score_tenet_adherence(self, action_history) -> float:
         """
@@ -208,37 +217,70 @@ class RewardEngine:
         savings = 500000.0 - (steps * 2.0 * 10000.0)
         return max(0, savings)
 
+    def calculate_seniority_report(self, reward, steps, resolved, correct_fix) -> dict:
+        """
+        Converts abstract RL metrics into a 'Judge-Friendly' Real World Report.
+        """
+        # Seniority Score (0-100)
+        # Base: Resolved (50pts), Correct Fix (20pts), Efficiency (30pts)
+        base_score = 50.0 if resolved else 0.0
+        fix_score = 20.0 if correct_fix else 0.0
+        efficiency_score = max(0, 30.0 * (1.0 - (steps / 50.0)))
+        
+        total_score = base_score + fix_score + efficiency_score
+        
+        # Penalize for noise/spam
+        if steps > 20:
+            total_score -= (steps - 20) * 1.5
+            
+        final_score = max(5, min(98, total_score)) # Intern (5) to Principal (98)
+        
+        # Revenue Saved ($10k / minute of SLA remaining)
+        # SLA is 30 mins. 
+        revenue_saved = 0
+        if resolved:
+            minutes_saved = max(0, 30 - (steps * 2)) # Assume 2min per step
+            revenue_saved = minutes_saved * 10000
+        else:
+            revenue_saved = -500000 # Loss
+            
+        ranking = "Intern"
+        if final_score > 85: ranking = "Principal SRE"
+        elif final_score > 70: ranking = "Senior SRE"
+        elif final_score > 40: ranking = "SRE L2"
+        
+        return {
+            "seniority_score": round(final_score, 1),
+            "revenue_impact_usd": int(revenue_saved),
+            "ranking": ranking
+        }
+
     def score_resolution(self, rca_text, fix_description, true_root_cause, true_fix,
                          correct_fix_applied, time_elapsed, sla_minutes, fix_attempts,
-                         step_count, hypothesis_log, action_history) -> float:
+                         step_count, hypothesis_log, action_history) -> dict:
         """
-        ULTRA-STRONG GRADING SYSTEM
+        ULTRA-STRONG REAL WORLD GRADING
         """
         total_reward = 0.0
-        
-        # 1. RCA quality
         incident_type = true_root_cause.split()[0].lower().replace(":", "")
         signals = ROOT_CAUSE_SIGNALS.get(incident_type, [])
         rca_matches = sum(1 for sig in signals if sig in rca_text.lower())
         rca_score = min(2.0, rca_matches * 0.5)
         total_reward += rca_score
         
-        # 2. Fix correctness (Major weight)
         if correct_fix_applied:
-            total_reward += 5.0 # Increased from 4.0
-            
-            # 3. SRE Tenet Adherence (Logical flow)
-            tenet_bonus = self.score_tenet_adherence(action_history)
-            total_reward += tenet_bonus
-            
-            # 4. Economic Multiplier (Extreme Incentive)
+            total_reward += 5.0
+            total_reward += self.score_tenet_adherence(action_history)
             efficiency_factor = max(0.8, 2.5 * (1.0 - (step_count / 50.0)))
             total_reward *= efficiency_factor
         else:
-            total_reward -= 3.0 # Heavier penalty for failure
+            total_reward -= 3.0
         
-        # 5. Anti-Spam / Noise Penalty
         if step_count > 15:
             total_reward -= (step_count - 15) * 0.1
+            
+        # GENERATE THE REAL WORLD DATA
+        report = self.calculate_seniority_report(total_reward, step_count, correct_fix_applied, correct_fix_applied)
+        report["abstract_reward"] = round(total_reward, 2)
         
-        return round(total_reward, 2)
+        return report
