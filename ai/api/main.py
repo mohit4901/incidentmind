@@ -374,34 +374,42 @@ def _save_reward_curve(rewards: list):
     except Exception as e:
         print(f"Could not save plot: {e}")
 
+import asyncio
+
 @app.post("/api/run-duel")
 async def run_duel(request: EpisodeRequest):
-    """
-    Run a side-by-side comparison between Trained and Untrained agents on the SAME incident.
-    """
     try:
-        print(f"[DUEL_START] Initiating Duel for Incident: {request.incident_class}")
+        # Reduced steps for duel to prevent proxy timeouts
+        duel_steps = min(request.max_steps, 20)
+        print(f"[DUEL_PARALLEL] Starting for Incident: {request.incident_class} ({duel_steps} steps)")
         
-        # 1. Run Untrained
-        untrained_env = IncidentMindEnv()
-        untrained_agent = SREAgent(model_type="random") # Default
-        seed_obs = untrained_env.reset(forced_class=request.incident_class)
-        untrained_result = _internal_run_episode(untrained_env, untrained_agent, seed_obs, request.max_steps)
+        # Helper to run agent in a thread (since it's blocking I/O)
+        def run_agent_rollout(m_type):
+            env = IncidentMindEnv()
+            agent = SREAgent(model_type=m_type)
+            obs = env.reset(forced_class=request.incident_class)
+            return _internal_run_episode(env, agent, obs, duel_steps)
+
+        # Run BOTH agents concurrently! 🚀
+        untrained_task = asyncio.to_thread(run_agent_rollout, "random")
+        trained_task = asyncio.to_thread(run_agent_rollout, "trained")
         
-        # 2. Run Trained (Expert)
-        trained_env = IncidentMindEnv()
-        trained_agent = SREAgent(model_type="trained")
-        trained_obs = trained_env.reset(forced_class=request.incident_class) 
-        trained_result = _internal_run_episode(trained_env, trained_agent, trained_obs, request.max_steps)
+        untrained_result, trained_result = await asyncio.gather(untrained_task, trained_task)
         
         return {
             "untrained": untrained_result,
             "trained": trained_result,
-            "incident": request.incident_class
+            "incident": request.incident_class,
+            "status": "success"
         }
     except Exception as e:
         print(f"[DUEL_CRASH] {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        return {
+            "status": "error",
+            "error": str(e),
+            "untrained": {"trajectory": [], "final_reward": 0},
+            "trained": {"trajectory": [], "final_reward": 0}
+        }
 
 def _internal_run_episode(env, agent, obs, max_steps):
     trajectory = []
