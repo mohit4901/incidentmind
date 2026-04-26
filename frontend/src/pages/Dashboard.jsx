@@ -8,9 +8,10 @@ import { StatusBadge } from '../components/StatusBadge';
 import { DuelView } from './DuelView';
 
 const getBaseURL = () => {
+  const { hostname, origin } = window.location;
   if (import.meta.env.VITE_BACKEND_URL) return import.meta.env.VITE_BACKEND_URL;
-  if (window.location.hostname.endsWith('.hf.space')) return window.location.origin;
-  return 'http://localhost:7860';
+  if (hostname === 'localhost' || hostname === '127.0.0.1') return 'http://localhost:7860';
+  return origin;
 };
 
 const API_URL = getBaseURL();

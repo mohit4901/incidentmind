@@ -1,15 +1,16 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { io } from 'socket.io-client';
 
-const getSocketURL = () => {
+const getBaseURL = () => {
+  const { hostname, origin } = window.location;
   if (import.meta.env.VITE_BACKEND_URL) return import.meta.env.VITE_BACKEND_URL;
-  if (window.location.hostname.endsWith('.hf.space')) return window.location.origin;
-  return 'http://localhost:3000';
+  if (hostname === 'localhost' || hostname === '127.0.0.1') return 'http://localhost:7860';
+  return origin;
 };
-const SOCKET_URL = getSocketURL();
+
+const WS_URL = getBaseURL().replace(/^http/, 'ws') + '/ws/run-episode';
 
 export function useSocket() {
-  const socketRef = useRef(null);
+  const wsRef = useRef(null);
   const [connected, setConnected] = useState(false);
   const [agentSteps, setAgentSteps] = useState([]);
   const [isRunning, setIsRunning] = useState(false);
@@ -17,71 +18,74 @@ export function useSocket() {
   const [error, setError] = useState(null);
   const [pendingApproval, setPendingApproval] = useState(null);
 
-  useEffect(() => {
-    const socket = io(SOCKET_URL, {
-      transports: ['websocket', 'polling'],
-      reconnectionAttempts: 10,
-      reconnectionDelay: 1000,
-    });
+  const connect = useCallback(() => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) return;
 
-    socketRef.current = socket;
+    const ws = new WebSocket(WS_URL);
+    wsRef.current = ws;
 
-    socket.on('connect', () => {
+    ws.onopen = () => {
       setConnected(true);
       setError(null);
-    });
+      console.log("[SOCKET] Connected to", WS_URL);
+    };
 
-    socket.on('disconnect', () => {
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      
+      switch (data.type) {
+        case 'step':
+          setAgentSteps((prev) => [...prev, data.step]);
+          setPendingApproval(null);
+          break;
+        case 'approval_required':
+          setPendingApproval(data.data);
+          break;
+        case 'episode_complete':
+          setEpisodeResult(data.result);
+          setIsRunning(false);
+          setPendingApproval(null);
+          break;
+        case 'error':
+          setError(data.message);
+          setIsRunning(false);
+          break;
+      }
+    };
+
+    ws.onclose = () => {
       setConnected(false);
-    });
+      console.log("[SOCKET] Disconnected");
+      // Optional: Auto-reconnect after 3s
+      setTimeout(connect, 3000);
+    };
 
-    socket.on('connect_error', (err) => {
-      setConnected(false);
-      setError(`Connection failed: ${err.message}`);
-    });
-
-    socket.on('agent-step', (step) => {
-      setAgentSteps((prev) => [...prev, step]);
-    });
-
-    socket.on('agent-step-update', (data) => {
-      setAgentSteps((prev) => {
-        const newSteps = [...prev];
-        if (data.index >= 0 && data.index < newSteps.length) {
-          newSteps[data.index] = data;
-        }
-        return newSteps;
-      });
-      setPendingApproval(null);
-    });
-
-    socket.on('action-approval-required', (data) => {
-      setPendingApproval(data);
-    });
-
-    socket.on('episode-complete', (result) => {
-      setEpisodeResult(result);
-      setIsRunning(false);
-      setPendingApproval(null);
-    });
-
-    socket.on('error', (err) => {
-      setError(err.message || 'Unknown socket error');
-      setIsRunning(false);
-    });
-
-    return () => {
-      socket.disconnect();
+    ws.onerror = (err) => {
+      console.error("[SOCKET] Error:", err);
+      setError("Connection lost. Retrying...");
     };
   }, []);
 
+  useEffect(() => {
+    connect();
+    return () => wsRef.current?.close();
+  }, [connect]);
+
   const runEpisode = useCallback(({ incidentClass = 'random', agentType = 'trained' } = {}) => {
-    if (!socketRef.current) return;
+    if (wsRef.current?.readyState !== WebSocket.OPEN) {
+        setError("Not connected to AI Bridge");
+        return;
+    }
     setAgentSteps([]);
     setEpisodeResult(null);
     setError(null);
     setIsRunning(true);
-    socketRef.current.emit('start-episode', { incidentClass, agentType });
+    
+    wsRef.current.send(JSON.stringify({
+      incident_class: incidentClass,
+      agent_type: agentType,
+      max_steps: 50
+    }));
   }, []);
 
   const resetEpisode = useCallback(() => {
@@ -93,13 +97,11 @@ export function useSocket() {
   }, []);
 
   const approveAction = useCallback(() => {
-    if (!socketRef.current) return;
-    socketRef.current.emit('action-approved');
+    wsRef.current?.send(JSON.stringify({ type: 'approve' }));
   }, []);
 
   const denyAction = useCallback(() => {
-    if (!socketRef.current) return;
-    socketRef.current.emit('action-denied');
+    wsRef.current?.send(JSON.stringify({ type: 'deny' }));
   }, []);
 
   return {
