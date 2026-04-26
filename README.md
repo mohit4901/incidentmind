@@ -56,7 +56,7 @@ We executed an intensive 15-step neural evolution loop on Apple Silicon to valid
 ## 🖼️ 4. Visual Evidence of Policy Convergence
 
 ### Policy Reward Stabilization (Phase 1)
-![Reward_Convergence](https://raw.githubusercontent.com/mohitmudgil/incidentmind/main/ai/training/results/Latest_Reward_Curve.png)
+![Reward_Convergence](https://raw.githubusercontent.com/mohitmudgil/incidentmind/main/results/Latest_Reward_Curve.png)
 *Figure 1: Mean reward across 60 rollouts showing the rapid behavioral alignment with expert SRE diagnostic JSON patterns.*
 
 ---
