@@ -1,3 +1,13 @@
+---
+title: IncidentMind GRPO Training
+emoji: 🧠
+colorFrom: indigo
+colorTo: purple
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
 # IncidentMind: Neural Evolution of Autonomous SREs
 ### A Technical Whitepaper on Root-Cause Forensics via Group Relative Policy Optimization (GRPO)
 
