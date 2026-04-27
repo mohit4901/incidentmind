@@ -45,7 +45,9 @@ class IncidentState:
     _correct_fix_applied: bool = field(default=False, repr=False)
 
 
-class IncidentMindEnv:
+from openenv.environment import Environment
+
+class IncidentMindEnv(Environment):
     """
     IncidentMind: An RL environment for training LLM agents on SRE incident resolution.
     
